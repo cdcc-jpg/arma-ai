@@ -1,0 +1,52 @@
+# HEMTT Project Configuration
+# Documentation: https://hemtt.dev/
+
+author = "Arma AI Team"
+name = "Arma AI"
+prefix = "aai"
+modname = "arma-ai"
+version = "0.1.0"
+mainprefix = "z"
+
+# Files included in the built mod release
+files = [
+    "src/*",
+    "ontology/*",
+    "AUTHORS.txt",
+    "LICENSE",
+    "README.md",
+]
+
+# Excluded patterns from mod builds
+exclude = [
+    "*.git*",
+    "*.github*",
+    ".vscode/*",
+    "tools/*",
+    "docs/*",
+    "missions/*",
+    "scratch/*",
+    "*.DS_Store",
+]
+
+[header]
+version = "0.1.0"
+website = "https://github.com/clementd/arma-ai"
+
+[release]
+# Automatic zip archive generation for releases
+archive = true
+git_publish = false
+
+[lint]
+# Linting rules for HEMTT check and build
+sqf = true
+rap = true
+cpp = true
+
+[lint.sqf]
+# SQF specific linter rules
+private_variables = true
+unused_variables = true
+trailing_semicolons = true
+undefined_variables = true

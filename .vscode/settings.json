@@ -1,0 +1,20 @@
+{
+    "files.associations": {
+        "*.sqf": "sqf",
+        "*.ext": "cpp",
+        "*.sqm": "cpp",
+        "*.hpp": "cpp",
+        "*.ttl": "turtle"
+    },
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+    "[sqf]": {
+        "editor.defaultFormatter": "koffeincup.sqflint",
+        "editor.formatOnSave": false
+    },
+    "[turtle]": {
+        "editor.tabSize": 2
+    }
+}

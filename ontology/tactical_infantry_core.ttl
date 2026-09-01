@@ -1,0 +1,516 @@
+@prefix : <http://arma-ai.org/ontology/tactical-core#> .
+@prefix tac: <http://arma-ai.org/ontology/tactical-core#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix geo: <http://www.opengis.net/ont/geosparql#> .
+@prefix dc: <http://purl.org/dc/elements/1.1/> .
+@prefix dcterms: <http://purl.org/dc/terms/> .
+
+<http://arma-ai.org/ontology/tactical-core#>
+    rdf:type owl:Ontology ;
+    dc:title "Tactical Infantry Core Ontology (TICO)"@en , "Ontologie Fondamentale d'Infanterie Tactique"@fr ;
+    dc:creator "arma-ai Tactical Architecture Group" ;
+    dcterms:created "2026-09-01"^^xsd:date ;
+    owl:versionInfo "1.0.0" ;
+    rdfs:comment "Formal OWL 2 ontology for real-time tactical reasoning, spatial affordances, threat modeling, and infantry micro-tactics in synthetic environments (Arma / military simulation)."@en ,
+                 "Ontologie formelle OWL 2 pour le raisonnement tactique en temps réel, les affordances spatiales, la modélisation des menaces et la micro-tactique d'infanterie en simulation."@fr .
+
+#################################################################
+#    Classes: Top-Level Hierarchy
+#################################################################
+
+###  http://arma-ai.org/ontology/tactical-core#TacticalAgent
+tac:TacticalAgent rdf:type owl:Class ;
+    rdfs:label "Tactical Agent"@en , "Agent Tactique"@fr ;
+    rdfs:comment "An autonomous or human-controlled tactical entity (e.g., infantry rifleman, squad leader, combat team member) capable of spatial mobility, posture adjustments, threat assessment, and weapon employment."@en ,
+                 "Entité tactique autonome ou contrôlée par un opérateur (combattant d'infanterie, chef de groupe) dotée de capacités motrices, posturales, d'évaluation des menaces et d'engagement d'armement."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#SpatialEntity
+tac:SpatialEntity rdf:type owl:Class ;
+    rdfs:label "Spatial Entity"@en , "Entité Spatiale"@fr ;
+    rdfs:comment "Top-level spatial element within the tactical environment, representing geometries, physical obstacles, terrain features, volumes, or dynamic spatial zones."@en ,
+                 "Élément spatial fondamental de l'environnement tactique, représentant les géométries, obstacles physiques, caractéristiques du terrain, volumes ou zones dynamiques."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#SolidCover
+tac:SolidCover rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Solid Cover"@en , "Abri / Couvert Dur"@fr ;
+    rdfs:comment "A physical, ballistic-stopping obstacle (e.g., concrete wall, rock outcrop, vehicle engine block, reinforced earth berm) capable of absorbing or deflecting direct small-arms fire and creating a geometric cover shadow."@en ,
+                 "Obstacle physique pare-balles (mur en béton, affleurement rocheux, bloc moteur, merlon de terre) capable d'arrêter ou dévier les tirs directs d'armes légères et projetant une ombre de couvert."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Concealment
+tac:Concealment rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Concealment"@en , "Masque / Camouflage Visuel"@fr ;
+    rdfs:comment "A spatial feature or entity that occludes visual and electro-optical line of sight (e.g., bushes, tall grass, smoke screen, tarpaulin, shadows) without providing ballistic protection against incoming projectiles."@en ,
+                 "Élément spatial occultant la ligne de vue directe ou optronique (buissons, hautes herbes, écran fumigène, bâche) sans conférer de protection balistique contre les projectiles."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Opening
+tac:Opening rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Opening / Breach"@en , "Ouverture / Brèche"@fr ;
+    rdfs:comment "A void, portal, or structural discontinuity in a barrier or building facade that permits visual observation, projectile traversal, or physical ingress/egress."@en ,
+                 "Discontinuité structurelle, vide ou baie dans une paroi ou façade permettant l'observation, le passage de projectiles ou le franchissement physique (franchissement/évacuation)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ThresholdDoor
+tac:ThresholdDoor rdf:type owl:Class ;
+    rdfs:subClassOf tac:Opening ;
+    rdfs:label "Threshold Doorway"@en , "Seuil de Porte / Porte"@fr ;
+    rdfs:comment "A floor-level structural opening configured primarily for full-body pedestrian entry, breaching, or corridor transition, presenting high fatal-funnel exposure during traversal."@en ,
+                 "Ouverture structurelle au niveau du sol destinée au franchissement pédestre, à l'effraction ou aux transitions de couloir, présentant un risque d'entonnoir fatal."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ApertureWindow
+tac:ApertureWindow rdf:type owl:Class ;
+    rdfs:subClassOf tac:Opening ;
+    rdfs:label "Aperture Window"@en , "Fenêtre / Meurtrière / Baie"@fr ;
+    rdfs:comment "An elevated wall aperture or window frame allowing observation, precision fire, peeking, and secondary ventilation/vaulting, while constraining the firing sector and silhouette."@en ,
+                 "Baie ou fenêtre surélevée permettant l'observation, le tir d'appui, le coup d'œil (peeking) et éventuellement le franchissement appuyé, tout en canalisant le secteur de tir."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#VantagePoint
+tac:VantagePoint rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Vantage Point"@en , "Point Haut / Point d'Observation Dominant"@fr ;
+    rdfs:comment "A spatially elevated or dominant position offering expansive line of sight, commanding observation, and extended engagement envelopes over surrounding lower-tier sectors."@en ,
+                 "Position spatiale surélevée ou dominante offrant des lignes de vue dégagées, une observation dominante et des portées d'engagement accrues sur les secteurs périphériques."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#CoverShadow
+tac:CoverShadow rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Cover Shadow / Safe Volume"@en , "Ombre de Couvert / Cône de Protection"@fr ;
+    rdfs:comment "The volumetric geometric safety zone cast behind a SolidCover along the anti-parallel direction of an active or anticipated ThreatVector, where direct ballistic line-of-fire is obstructed."@en ,
+                 "Volume géométrique de sécurité projeté derrière un abri solide à l'opposé de la direction d'un vecteur de menace, dans lequel la ligne de tir direct est rompue."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ExposureCone
+tac:ExposureCone rdf:type owl:Class ;
+    rdfs:subClassOf tac:SpatialEntity ;
+    rdfs:label "Exposure Cone / Danger Sector"@en , "Cône d'Exposition / Secteur Dangereux"@fr ;
+    rdfs:comment "A geometric field of view or line-of-fire projection emanating from an opening, corner, or threat origin, within which an agent incurs non-zero probability of detection or hit."@en ,
+                 "Projection volumique ou angulaire issue d'une ouverture, d'un angle ou d'une menace, à l'intérieur de laquelle un agent subit une probabilité non nulle de détection ou de coup au but."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ThreatSource
+tac:ThreatSource rdf:type owl:Class ;
+    rdfs:label "Threat Source"@en , "Source de Menace"@fr ;
+    rdfs:comment "A hostile actor, fortified weapon emplacement, sniper hide, uncleared sector, or suspected enemy point of origin generating potential or active ballistic and visual vectors."@en ,
+                 "Acteur hostile, nid de mitrailleuse, tireur d'élite, secteur non nettoyé ou zone suspecte générant des vecteurs balistiques et d'observation actifs ou potentiels."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ThreatVector
+tac:ThreatVector rdf:type owl:Class ;
+    rdfs:label "Threat Vector"@en , "Vecteur de Menace"@fr ;
+    rdfs:comment "A directed 3D ray or conical trajectory defined by an origin, direction vector, effective engagement range, and lethal intensity rating representing incoming hostile fire or surveillance."@en ,
+                 "Rayon ou secteur 3D orienté défini par une origine, un vecteur directionnel, une portée efficace et une intensité létale, modélisant un tir hostile ou une surveillance active."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Stance
+tac:Stance rdf:type owl:Class ;
+    rdfs:label "Infantry Stance / Posture"@en , "Posture / Stance d'Infanterie"@fr ;
+    rdfs:comment "The vertical biomechanical configuration of an infantry agent determining physical eye height, center of mass, silhouette surface area, and locomotion velocity."@en ,
+                 "Configuration biomécanique verticale du combattant déterminant la hauteur des yeux, le centre de masse, la surface de silhouette projetée et la vitesse de déplacement."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Prone
+tac:Prone rdf:type owl:Class ;
+    rdfs:subClassOf tac:Stance ;
+    rdfs:label "Prone Stance"@en , "Posture Couchée"@fr ;
+    rdfs:comment "Horizontal posture (~0.35m height) offering the lowest silhouette and maximum exploitation of low micro-relief cover, but constrained transition speed and mobility."@en ,
+                 "Posture allongée au sol (~0.35m) offrant la silhouette la plus basse et l'utilisation maximale des micro-reliefs, au détriment de la vitesse de transition et de la mobilité."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Crouch
+tac:Crouch rdf:type owl:Class ;
+    rdfs:subClassOf tac:Stance ;
+    rdfs:label "Crouched Stance"@en , "Posture Accroupie / À Genoux"@fr ;
+    rdfs:comment "Intermediate kneeling or crouched posture (~1.1m height) balancing rapid mobility with reduced frontal profile behind waist-level barriers."@en ,
+                 "Posture intermédiaire à genoux ou fléchie (~1.1m) équilibrant vitesse de déplacement et réduction de profil derrière les murets et parapets."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#Stand
+tac:Stand rdf:type owl:Class ;
+    rdfs:subClassOf tac:Stance ;
+    rdfs:label "Standing Stance"@en , "Posture Debout"@fr ;
+    rdfs:comment "Upright vertical posture (~1.8m height) providing maximum locomotion speed and over-barrier visibility at the cost of high exposure and silhouette exposure."@en ,
+                 "Posture verticale redressée (~1.8m) offrant une vitesse maximale et une visibilité au-dessus des obstacles hauts, au prix d'une forte silhouette et d'une vulnérabilité accrue."@fr .
+
+# Disjointness axiom for Stance subclasses
+[] rdf:type owl:AllDisjointClasses ;
+   owl:members ( tac:Prone tac:Crouch tac:Stand ) .
+
+#################################################################
+#    Classes: Gibsonian Tactical Affordances
+#################################################################
+
+###  http://arma-ai.org/ontology/tactical-core#TacticalAffordance
+tac:TacticalAffordance rdf:type owl:Class ;
+    rdfs:label "Tactical Affordance"@en , "Affordance Tactique"@fr ;
+    rdfs:comment "A relational action-possibility emerging from the physical properties of a SpatialEntity relative to the biomechanics, stance, and survival goals of a TacticalAgent under specific threat conditions (Gibsonian ecological psychology applied to micro-tactics)."@en ,
+                 "Possibilité d'action relationnelle émergeant des propriétés physiques d'une entité spatiale par rapport aux capacités motrices, à la posture et aux impératifs de survie d'un agent sous menace (psychologie écologique de Gibson appliquée à la micro-tactique)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#CoverAffordance
+tac:CoverAffordance rdf:type owl:Class ;
+    rdfs:subClassOf tac:TacticalAffordance ;
+    rdfs:label "Cover Affordance"@en , "Affordance de Couvert"@fr ;
+    rdfs:comment "Action-possibility enabling an agent in a specific Stance to occupy a CoverShadow cast by a SolidCover and achieve ballistic occlusion against one or more ThreatVectors."@en ,
+                 "Possibilité d'action permettant à un agent adoptant une posture adéquate d'occuper l'ombre de protection d'un couvert dur pour annuler la ligne de tir de vecteurs de menace."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#TraverseAffordance
+tac:TraverseAffordance rdf:type owl:Class ;
+    rdfs:subClassOf tac:TacticalAffordance ;
+    rdfs:label "Traverse Affordance / Bound"@en , "Affordance de Franchissement / Bond"@fr ;
+    rdfs:comment "Action-possibility allowing rapid bounding or movement between two spatial nodes (e.g. cover to cover) while constraining the time spent within intersecting ExposureCones."@en ,
+                 "Possibilité d'action permettant un bond ou déplacement dynamique entre deux positions d'abri en limitant le temps de passage dans les cônes d'exposition hostiles."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#PeekAffordance
+tac:PeekAffordance rdf:type owl:Class ;
+    rdfs:subClassOf tac:TacticalAffordance ;
+    rdfs:label "Peek Affordance / Slicing Angle"@en , "Affordance de Coup d'Œil / Prise d'Angle (Peek)"@fr ;
+    rdfs:comment "Action-possibility allowing an agent to perform a micro-step, lean, or pie-slicing observation around an obstacle edge or opening with minimal exposure surface and quick recovery to cover."@en ,
+                 "Possibilité d'action permettant une prise d'angle progressive (slicing the pie), une inclinaison ou un coup d'œil furtif autour d'un angle avec exposition minimale et retour immédiat à l'abri."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#FireAffordance
+tac:FireAffordance rdf:type owl:Class ;
+    rdfs:subClassOf tac:TacticalAffordance ;
+    rdfs:label "Fire Affordance / Shooting Line"@en , "Affordance de Tir / Ligne d'Engagement"@fr ;
+    rdfs:comment "Action-possibility offering a stable firing platform, weapon alignment, and clear trajectory towards a target or threat sector while maintaining partial or full body defilade."@en ,
+                 "Possibilité d'action conférant une ligne de tir stable, un dégagement d'armement vers une menace ou un secteur cible tout en conservant un défilement partiel ou total du corps."@fr .
+
+# Disjointness axiom for TacticalAffordance subclasses
+[] rdf:type owl:AllDisjointClasses ;
+   owl:members ( tac:CoverAffordance tac:TraverseAffordance tac:PeekAffordance tac:FireAffordance ) .
+
+#################################################################
+#    Defined Classes & Logical DL Axioms
+#################################################################
+
+###  http://arma-ai.org/ontology/tactical-core#DefendedPosition
+tac:DefendedPosition rdf:type owl:Class ;
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            tac:SpatialEntity
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty tac:grantsAffordance ;
+                owl:someValuesFrom [
+                    rdf:type owl:Class ;
+                    owl:intersectionOf (
+                        tac:CoverAffordance
+                        [
+                            rdf:type owl:Restriction ;
+                            owl:onProperty tac:protectsAgainstVector ;
+                            owl:someValuesFrom tac:ThreatVector
+                        ]
+                    )
+                ]
+            ]
+        )
+    ] ;
+    rdfs:label "Defended Position / Covered Waypoint"@en , "Position Protégée / Point d'Appui Défendu"@fr ;
+    rdfs:comment "A spatial position or waypoint that actively grants a CoverAffordance neutralizing at least one active ThreatVector."@en ,
+                 "Position spatiale ou point de passage offrant activement une affordance de couvert qui neutralise au moins un vecteur de menace."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#FatalFunnelOpening
+tac:FatalFunnelOpening rdf:type owl:Class ;
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            tac:Opening
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty tac:exposesTo ;
+                owl:someValuesFrom tac:ThreatSource
+            ]
+        )
+    ] ;
+    rdfs:label "Fatal Funnel Opening"@en , "Entonnoir Fatal / Brèche Vulnérable"@fr ;
+    rdfs:comment "An opening directly swept by hostile lines of fire or observation, concentrating vulnerability during ingress/egress."@en ,
+                 "Ouverture ou brèche directement battue par les feux ou l'observation ennemie, constituant une zone d'exposition critique."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#ProtectedVantagePoint
+tac:ProtectedVantagePoint rdf:type owl:Class ;
+    owl:equivalentClass [
+        rdf:type owl:Class ;
+        owl:intersectionOf (
+            tac:VantagePoint
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty tac:grantsAffordance ;
+                owl:someValuesFrom tac:CoverAffordance
+            ]
+            [
+                rdf:type owl:Restriction ;
+                owl:onProperty tac:grantsAffordance ;
+                owl:someValuesFrom tac:FireAffordance
+            ]
+        )
+    ] ;
+    rdfs:label "Protected Vantage Point"@en , "Point Haut Protégé"@fr ;
+    rdfs:comment "A dominant observation and firing position that simultaneously provides solid cover and firing affordance."@en ,
+                 "Position dominante de tir et d'observation qui offre simultanément un couvert pare-balles et une ligne d'engagement."@fr .
+
+#################################################################
+#    Object Properties
+#################################################################
+
+###  http://arma-ai.org/ontology/tactical-core#hasCoverFrom
+tac:hasCoverFrom rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:isCoverFor ;
+    rdfs:domain tac:TacticalAgent ;
+    rdfs:range tac:SolidCover ;
+    rdfs:label "has cover from"@en , "est à l'abri derrière"@fr ;
+    rdfs:comment "Relates a tactical agent to the solid obstacle currently shielding it from hostile ballistic vectors."@en ,
+                 "Relie l'agent tactique à l'obstacle solide qui le protège actuellement des trajectoires balistiques hostiles."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#isCoverFor
+tac:isCoverFor rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:hasCoverFrom ;
+    rdfs:domain tac:SolidCover ;
+    rdfs:range tac:TacticalAgent ;
+    rdfs:label "is cover for"@en , "sert d'abri pour"@fr ;
+    rdfs:comment "Inverse of hasCoverFrom; indicates which agent is shielded by this solid cover."@en ,
+                 "Inverse de hasCoverFrom; indique quel agent est abrité par ce couvert solide."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#exposesTo
+tac:exposesTo rdf:type owl:ObjectProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:SpatialEntity tac:TacticalAgent )
+    ] ;
+    rdfs:range tac:ThreatSource ;
+    rdfs:label "exposes to"@en , "expose à"@fr ;
+    rdfs:comment "Indicates that a spatial position, passage, or agent is vulnerable to direct visual detection or engagement by a threat source."@en ,
+                 "Indique qu'une position spatiale, un passage ou un agent est vulnérable à la vue directe ou aux tirs d'une source de menace."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#affordsStance
+tac:affordsStance rdf:type owl:ObjectProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:TacticalAffordance tac:SolidCover )
+    ] ;
+    rdfs:range tac:Stance ;
+    rdfs:label "affords stance"@en , "autorise la posture"@fr ;
+    rdfs:comment "Specifies the required or supported body postures (Prone, Crouch, Stand) compatible with an affordance or cover geometry."@en ,
+                 "Spécifie la ou les postures requises (Couché, Accroupi, Debout) pour exploiter efficacement une affordance ou une géométrie de couvert."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#requiresExposureBudget
+tac:requiresExposureBudget rdf:type owl:ObjectProperty ;
+    rdfs:domain tac:TacticalAffordance ;
+    rdfs:range tac:ExposureCone ;
+    rdfs:label "requires exposure budget in"@en , "nécessite un budget d'exposition dans"@fr ;
+    rdfs:comment "Associates an affordance (such as a bounding traverse or peeking action) with the danger exposure cone it inevitably traverses or enters."@en ,
+                 "Associe une affordance (comme un franchissement en bond ou un coup d'œil) au cône de danger qu'elle traverse temporairement."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#protectsAgainstVector
+tac:protectsAgainstVector rdf:type owl:ObjectProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:CoverAffordance tac:SolidCover tac:CoverShadow )
+    ] ;
+    rdfs:range tac:ThreatVector ;
+    rdfs:label "protects against vector"@en , "protège contre le vecteur"@fr ;
+    rdfs:comment "Declares that a cover affordance, physical barrier, or cover shadow volume obstructs and neutralizes a specific incoming threat vector."@en ,
+                 "Déclare qu'une affordance de couvert, un obstacle ou une ombre de protection intercepte et neutralise un vecteur de menace précis."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasOpening
+tac:hasOpening rdf:type owl:ObjectProperty ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range tac:Opening ;
+    rdfs:label "has opening"@en , "possède l'ouverture"@fr ;
+    rdfs:comment "Links a structural spatial entity (wall, building, facade) to an internal opening such as a window or door."@en ,
+                 "Relie une entité spatiale structurelle (mur, bâtiment, façade) à une baie ou ouverture interne (porte, fenêtre)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#isAdjacentTo
+tac:isAdjacentTo rdf:type owl:ObjectProperty , owl:SymmetricProperty ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range tac:SpatialEntity ;
+    rdfs:label "is adjacent to"@en , "est adjacent à"@fr ;
+    rdfs:comment "Symmetric topological adjacency relationship connecting contiguous spatial cells, cover elements, or tactical nodes."@en ,
+                 "Relation topologique symétrique de contiguïté reliant deux mailles spatiales, éléments de couvert ou nœuds tactiques adjacents."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasThreatOrigin
+tac:hasThreatOrigin rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:originatesVector ;
+    rdfs:domain tac:ThreatVector ;
+    rdfs:range tac:ThreatSource ;
+    rdfs:label "has threat origin"@en , "a pour origine de menace"@fr ;
+    rdfs:comment "Points to the hostile actor or spatial danger zone generating the threat vector."@en ,
+                 "Désigne l'acteur hostile ou la zone de danger générant le vecteur de menace."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#originatesVector
+tac:originatesVector rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:hasThreatOrigin ;
+    rdfs:domain tac:ThreatSource ;
+    rdfs:range tac:ThreatVector ;
+    rdfs:label "originates vector"@en , "génère le vecteur"@fr ;
+    rdfs:comment "Inverse of hasThreatOrigin; links a threat source to all active or projected threat vectors emanating from it."@en ,
+                 "Inverse de hasThreatOrigin; relie une source de menace aux vecteurs de tir ou d'observation qu'elle engendre."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasShadowVolume
+tac:hasShadowVolume rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:isShadowOf ;
+    rdfs:domain tac:SolidCover ;
+    rdfs:range tac:CoverShadow ;
+    rdfs:label "has shadow volume"@en , "projette l'ombre de protection"@fr ;
+    rdfs:comment "Connects a solid ballistic obstacle to the safe cover shadow volume it casts away from threat lines."@en ,
+                 "Relie un obstacle solide au volume d'ombre de protection qu'il projette à l'opposé des lignes d'acquisition ennemies."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#isShadowOf
+tac:isShadowOf rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:hasShadowVolume ;
+    rdfs:domain tac:CoverShadow ;
+    rdfs:range tac:SolidCover ;
+    rdfs:label "is shadow volume of"@en , "est l'ombre de protection de"@fr ;
+    rdfs:comment "Inverse of hasShadowVolume; links a safe cover shadow volume back to its physical occluding solid cover."@en ,
+                 "Inverse de hasShadowVolume; relie le volume de sécurité à l'obstacle physique qui l'engendre."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#grantsAffordance
+tac:grantsAffordance rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:affordedBy ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range tac:TacticalAffordance ;
+    rdfs:label "grants affordance"@en , "offre l'affordance"@fr ;
+    rdfs:comment "Asserts that a spatial entity or obstacle geometry enables a specific tactical affordance for nearby agents."@en ,
+                 "Établit qu'une entité spatiale ou géométrie de terrain confère une affordance tactique exploitable par les agents."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#affordedBy
+tac:affordedBy rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:grantsAffordance ;
+    rdfs:domain tac:TacticalAffordance ;
+    rdfs:range tac:SpatialEntity ;
+    rdfs:label "afforded by"@en , "est offerte par"@fr ;
+    rdfs:comment "Inverse of grantsAffordance; links a tactical action possibility back to its sustaining spatial physical entity."@en ,
+                 "Inverse de grantsAffordance; relie l'action possible à l'entité spatiale physique qui la supporte."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasCurrentStance
+tac:hasCurrentStance rdf:type owl:ObjectProperty , owl:FunctionalProperty ;
+    rdfs:domain tac:TacticalAgent ;
+    rdfs:range tac:Stance ;
+    rdfs:label "has current stance"@en , "a pour posture actuelle"@fr ;
+    rdfs:comment "The instantaneous physical stance (Prone, Crouch, Stand) currently adopted by the tactical agent."@en ,
+                 "Posture physique instantanée (Couché, Accroupi, Debout) adoptée par l'agent tactique."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#occupiesPosition
+tac:occupiesPosition rdf:type owl:ObjectProperty , owl:FunctionalProperty ;
+    owl:inverseOf tac:isOccupiedBy ;
+    rdfs:domain tac:TacticalAgent ;
+    rdfs:range tac:SpatialEntity ;
+    rdfs:label "occupies position"@en , "occupe la position"@fr ;
+    rdfs:comment "Current spatial waypoint or geometric cell occupied by the tactical agent."@en ,
+                 "Emplacement spatial ou maille géométrique occupée par l'agent tactique."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#isOccupiedBy
+tac:isOccupiedBy rdf:type owl:ObjectProperty ;
+    owl:inverseOf tac:occupiesPosition ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range tac:TacticalAgent ;
+    rdfs:label "is occupied by"@en , "est occupée par"@fr ;
+    rdfs:comment "Identifies the tactical agent residing at this spatial entity or waypoint."@en ,
+                 "Identifie l'agent tactique situé dans cette entité spatiale ou ce point de passage."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#targetsSectorOrThreat
+tac:targetsSectorOrThreat rdf:type owl:ObjectProperty ;
+    rdfs:domain tac:FireAffordance ;
+    rdfs:range [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:ThreatSource tac:SpatialEntity )
+    ] ;
+    rdfs:label "targets sector or threat"@en , "cible le secteur ou la menace"@fr ;
+    rdfs:comment "Designates the threat source or spatial sector targeted by a fire affordance."@en ,
+                 "Désigne la source de menace ou le secteur spatial visé par une affordance de tir."@fr .
+
+#################################################################
+#    Data Properties
+#################################################################
+
+###  http://arma-ai.org/ontology/tactical-core#hasEffectiveHeight
+tac:hasEffectiveHeight rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range xsd:float ;
+    rdfs:label "effective height (m)"@en , "hauteur efficace (m)"@fr ;
+    rdfs:comment "Physical vertical dimension in meters of a spatial barrier, obstacle, or cover element."@en ,
+                 "Dimension verticale physique en mètres d'une paroi, d'un obstacle ou d'un élément de couvert."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasEffectiveWidth
+tac:hasEffectiveWidth rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range xsd:float ;
+    rdfs:label "effective width (m)"@en , "largeur efficace (m)"@fr ;
+    rdfs:comment "Horizontal lateral span in meters of an obstacle, window, or door portal."@en ,
+                 "Envergure horizontale en mètres d'un obstacle, d'une baie de fenêtre ou d'un passage de porte."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasPenetrationResistance
+tac:hasPenetrationResistance rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:SpatialEntity ;
+    rdfs:range xsd:float ;
+    rdfs:label "penetration resistance [0..1]"@en , "résistance à la pénétration [0..1]"@fr ;
+    rdfs:comment "Dimensionless ballistic resistance coefficient from 0.0 (no protection, fabric/smoke) to 1.0 (impenetrable reinforced concrete/armor steel against standard small-arms calibers)."@en ,
+                 "Coefficient adimensionnel de résistance balistique de 0.0 (aucune protection, tissu/fumée) à 1.0 (béton armé/blindage impénétrable aux calibres d'infanterie standard)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasTimeToCover
+tac:hasTimeToCover rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:TacticalAffordance ;
+    rdfs:range xsd:float ;
+    rdfs:label "time to cover (s)"@en , "temps d'accès au couvert (s)"@fr ;
+    rdfs:comment "Estimated sprint or crawl transit duration in seconds required for an agent to reach full occlusion in the cover shadow."@en ,
+                 "Durée estimée de transit (sprint ou reptation) en secondes nécessaire pour atteindre l'occlusion complète dans l'ombre de protection."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasExposureAngle
+tac:hasExposureAngle rdf:type owl:DatatypeProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:ExposureCone tac:TacticalAffordance tac:Opening )
+    ] ;
+    rdfs:range xsd:float ;
+    rdfs:label "exposure angle (deg)"@en , "angle d'exposition (deg)"@fr ;
+    rdfs:comment "Angular aperture in degrees of the danger sector, lethal cone, or field of view."@en ,
+                 "Aperture angulaire en degrés du secteur dangereux, du cône de tir ou du champ de vision."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasThreatIntensity
+tac:hasThreatIntensity rdf:type owl:DatatypeProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:ThreatSource tac:ThreatVector )
+    ] ;
+    rdfs:range xsd:float ;
+    rdfs:label "threat intensity [0..1]"@en , "intensité de la menace [0..1]"@fr ;
+    rdfs:comment "Normalized threat severity scalar from 0.0 (unconfirmed distant noise) to 1.0 (direct point-blank heavy machine gun suppression or sniper pin)."@en ,
+                 "Échelon normalisé de sévérité de la menace de 0.0 (bruit lointain non confirmé) à 1.0 (tir de saturation direct à bout portant ou tireur de précision engagé)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasConfidenceRating
+tac:hasConfidenceRating rdf:type owl:DatatypeProperty ;
+    rdfs:domain [
+        rdf:type owl:Class ;
+        owl:unionOf ( tac:ThreatSource tac:TacticalAffordance tac:ThreatVector )
+    ] ;
+    rdfs:range xsd:float ;
+    rdfs:label "confidence rating [0..1]"@en , "indice de confiance [0..1]"@fr ;
+    rdfs:comment "Epistemic probability and sensor reliability score [0.0..1.0] regarding the existence and state of a threat or affordance."@en ,
+                 "Indice de confiance épistémique et de fiabilité capteur [0.0..1.0] quant à l'exactitude d'une détection de menace ou de la stabilité d'une affordance."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasMaxPostureHeight
+tac:hasMaxPostureHeight rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:Stance ;
+    rdfs:range xsd:float ;
+    rdfs:label "posture height (m)"@en , "hauteur de posture (m)"@fr ;
+    rdfs:comment "Nominal vertical height clearance in meters associated with a human soldier posture (e.g., 0.35m for Prone, 1.10m for Crouch, 1.80m for Stand)."@en ,
+                 "Gabarit vertical nominal en mètres associé à la posture du combattant (0.35m Couché, 1.10m Accroupi, 1.80m Debout)."@fr .
+
+###  http://arma-ai.org/ontology/tactical-core#hasEngagementDistance
+tac:hasEngagementDistance rdf:type owl:DatatypeProperty ;
+    rdfs:domain tac:FireAffordance ;
+    rdfs:range xsd:float ;
+    rdfs:label "engagement distance (m)"@en , "distance d'engagement (m)"@fr ;
+    rdfs:comment "Distance in meters along the line of fire to the designated sector or target."@en ,
+                 "Distance en mètres le long de la ligne de mire jusqu'au secteur ou à la cible visée."@fr .
+
+#################################################################
+#    Canonical Individuals (Stance Instances)
+#################################################################
+
+tac:StanceProne rdf:type tac:Prone , owl:NamedIndividual ;
+    rdfs:label "Prone Posture Instance"@en , "Instance Posture Couchée"@fr ;
+    tac:hasMaxPostureHeight "0.35"^^xsd:float .
+
+tac:StanceCrouch rdf:type tac:Crouch , owl:NamedIndividual ;
+    rdfs:label "Crouch Posture Instance"@en , "Instance Posture Accroupie"@fr ;
+    tac:hasMaxPostureHeight "1.10"^^xsd:float .
+
+tac:StanceStand rdf:type tac:Stand , owl:NamedIndividual ;
+    rdfs:label "Stand Posture Instance"@en , "Instance Posture Debout"@fr ;
+    tac:hasMaxPostureHeight "1.80"^^xsd:float .
