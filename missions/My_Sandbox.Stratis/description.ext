@@ -32,21 +32,22 @@ class CfgFunctions {
         tag = "AAI";
 
         class Grounding {
-            file = "..\..\src\grounding";
+            file = "src\grounding";
             class perceiveObstacles {};
             class computeCoverShadow {};
             class evaluateStanceAffordance {};
         };
 
         class Controller {
-            file = "..\..\src\controller";
+            file = "src\controller";
             class tacticalTick {};
             class executeMovement {};
             class startAgentController {};
+            class updateKnowledgeGraph {};
         };
 
         class Debug {
-            file = "..\..\src\debug";
+            file = "src\debug";
             class drawTacticalOverlay {};
         };
     };
