@@ -265,11 +265,22 @@ AAI_fnc_resetBenchmarkTrial = {
 
             systemChat format ["[AGIA MARINA - SEMANTIQUE] Binome en progression vers %1...", _callsign];
 
-            // Wait until this target is killed or both soldiers die
-            waitUntil {!alive _currentTarget || {(!alive _lead && {!alive _wing})}};
+            // Wait until this target is killed, or dominated in close quarters (< 6.0m), or both soldiers die
+            waitUntil {
+                !alive _currentTarget 
+                || {(!alive _lead && {!alive _wing})}
+                || {(alive _lead && {_lead distance2D _currentPos < 6.0})}
+                || {(alive _wing && {_wing distance2D _currentPos < 6.0})}
+            };
 
             if (!alive _lead && {!alive _wing}) exitWith {
                 systemChat format ["[AGIA MARINA - SEMANTIQUE] ECHEC ! Le binome BLUFOR a ete elimine a la cible %1 (%2/5 neutralisees).", _targetNum, _i];
+                diag_log format ["[AGIA MARINA - SEMANTIQUE] ECHEC ! Le binome BLUFOR a ete elimine a la cible %1 (%2/5 neutralisees).", _targetNum, _i];
+            };
+
+            // If target was bypassed or suppressed by close-quarters domination, ensure clean elimination
+            if (alive _currentTarget && {(alive _lead && {_lead distance2D _currentPos < 6.5}) || (alive _wing && {_wing distance2D _currentPos < 6.5})}) then {
+                _currentTarget setDamage 1;
             };
 
             if (!alive _lead && {alive _wing}) then {
@@ -279,6 +290,7 @@ AAI_fnc_resetBenchmarkTrial = {
 
             missionNamespace setVariable ["AAI_TargetsKilledCount", _targetNum];
             systemChat format ["[AGIA MARINA - SEMANTIQUE] %1 neutralisee ! (%2/5 terminees)", _callsign, _targetNum];
+            diag_log format ["[AGIA MARINA - SEMANTIQUE] %1 neutralisee ! (%2/5 terminees)", _callsign, _targetNum];
             sleep 0.4;
         };
 

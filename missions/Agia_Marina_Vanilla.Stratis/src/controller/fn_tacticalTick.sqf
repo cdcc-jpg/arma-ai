@@ -138,10 +138,10 @@ private _moveStartTime = _unit getVariable ["AAI_MoveStartTime", time];
 private _transitDuration = time - _moveStartTime;
 
 private _isArrived = (count _currentCoverPoint >= 2 && {
-    _distToCurrentCover <= 2.8 
-    || (_distToCurrentCover <= 4.5 && {_transitDuration > 2.0} && {speed _unit < 0.7}) 
-    || (_distToCurrentCover <= 4.0 && {_transitDuration > 2.5}) 
-    || (_distToCurrentCover <= 3.5 && {unitReady _unit} && {time - _lastMoveTime > 0.3})
+    _distToCurrentCover <= 3.0 
+    || (_distToCurrentCover <= 5.5 && {speed _unit < 0.35} && {time - _lastMoveTime > 1.2}) 
+    || (_distToCurrentCover <= 4.8 && {_transitDuration > 2.0} && {speed _unit < 0.7}) 
+    || (_distToCurrentCover <= 4.2 && {unitReady _unit} && {time - _lastMoveTime > 0.3})
 });
 
 // SPRINT COMMITMENT: If currently bounding to a chosen cover and hasn't reached arrival yet
@@ -153,12 +153,15 @@ if (!_forceRecalc && {_currentState == "MOVING_TO_COVER"} && {count _currentCove
 
     // Robust Un-stick & Transit Timeout Safety:
     // Allow long sprints (up to 32m across bridges/riverbeds taking 6-7s).
-    // Only abort if sprint exceeds 8.0s and still far, or physically stationary for > 2.2s.
+    // If blocked or stationary (> 2.2s), abort and add to aborted covers blacklist!
     if ((_transitDuration > 8.0 && {_distToCurrentCover > 4.5}) || {time - _lastMoveTime > 2.2 && {speed _unit < 0.20}}) then {
         _unit setVariable ["AAI_LastMoveOrderTime", time];
         _unit setVariable ["AAI_MoveStartTime", time];
         _unit setVariable ["AAI_TacticalState", "RECALCULATING"];
-        // Temporarily penalize this unreachable candidate
+        // Record as specifically aborted to prevent immediate re-selection!
+        private _aborted = _unit getVariable ["AAI_AbortedCoverPoints", []];
+        _aborted pushBack [_currentCoverPoint, time];
+        _unit setVariable ["AAI_AbortedCoverPoints", _aborted];
         private _visList = _unit getVariable ["AAI_VisitedCoverPoints", []];
         _visList pushBack [_currentCoverPoint, time];
         _unit setVariable ["AAI_VisitedCoverPoints", _visList];
@@ -289,21 +292,24 @@ if (!_forceRecalc && {_isInCover} && {!_isObstacleCleared} && {_dwellTime < _tar
         // RADIO CALLOUT: CONTACT!
         [_unit, format ["CONTACT ENNEMI %1m ! FEU !", round (_unit distance _spottedEnemy)], "CONTACT"] call AAI_fnc_tacticalRadio;
 
-        // INSTANT LETHAL PRE-EMPTIVE BURST (ZERO DELAY!)
+        // INSTANT LETHAL PRE-EMPTIVE BURST (ZERO DELAY DECISIVE NEUTRALIZATION!)
         _unit doTarget _spottedEnemy;
         _unit doWatch _spottedEnemy;
-        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
-        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
-        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+        for "_f" from 1 to 5 do {
+            _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+        };
+        _unit doSuppressiveFire _spottedEnemy;
 
-        // Alert teammate to lay down crossfire
+        // Alert teammate to lay down overwhelming crossfire
         private _buddyUnit = _unit getVariable ["AAI_BuddyUnit", objNull];
         if (!isNull _buddyUnit && {alive _buddyUnit}) then {
             _buddyUnit setVariable ["AAI_ActiveThreat", _spottedEnemy];
             _buddyUnit doTarget _spottedEnemy;
             _buddyUnit doWatch _spottedEnemy;
-            _buddyUnit forceWeaponFire [currentMuzzle _buddyUnit, "Single"];
-            _buddyUnit forceWeaponFire [currentMuzzle _buddyUnit, "Single"];
+            for "_f" from 1 to 5 do {
+                _buddyUnit forceWeaponFire [currentMuzzle _buddyUnit, "Single"];
+            };
+            _buddyUnit doSuppressiveFire _spottedEnemy;
             [_buddyUnit, "Ennemi pris pour cible ! Tir d'appui croisé !", "CONTACT"] call AAI_fnc_tacticalRadio;
         };
 
@@ -637,10 +643,22 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
         };
     };
 
+    // Aborted Cover Blacklist: If this cover timed out or was physically blocked, NEVER re-select it!
+    private _abortedPenalty = 0.0;
+    private _abortedCovers = _unit getVariable ["AAI_AbortedCoverPoints", []];
+    _abortedCovers = _abortedCovers select { (time - (_x select 1)) < 35.0 };
+    _unit setVariable ["AAI_AbortedCoverPoints", _abortedCovers];
+    {
+        _x params ["_aPos"];
+        if (_cPoint distance2D _aPos < 4.2) exitWith {
+            _abortedPenalty = 2500.0; // Absolute barrier: never re-select an unreachable/blocked cover!
+        };
+    } forEach _abortedCovers;
+
     // Target Commitment / Stickiness: Strongly incentivize sticking with the currently assigned cover
     // to eradicate flitting ("papillonnage") between left and right walls on minor score noise!
     private _commitmentBonus = 0.0;
-    if (count _currentCoverPoint >= 2 && {_cPoint distance2D _currentCoverPoint < 2.5}) then {
+    if (_abortedPenalty == 0.0 && {count _currentCoverPoint >= 2} && {_cPoint distance2D _currentCoverPoint < 2.5}) then {
         _commitmentBonus = 35.0;
     };
 
@@ -697,20 +715,42 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
     if (_unit != _leadUnit && {alive _leadUnit} && {count _objectivePos >= 2}) then {
         private _leadDistToObj = _leadUnit distance2D _objectivePos;
         private _candDistToObj = _cPoint distance2D _objectivePos;
-        // Wingman must not overtake pointman (> 1.0m ahead towards objective)
-        if (_candDistToObj < _leadDistToObj - 1.0) then {
-            _cohesionPenalty = _cohesionPenalty + 200.0;
-        };
-        // Wingman tight leash: ideal distance to lead is 3.5m to 6.5m in urban CQB
         private _distToLead = _cPoint distance2D (getPosATL _leadUnit);
-        if (_distToLead < 3.0) then {
-            _cohesionPenalty = _cohesionPenalty + ((3.0 - _distToLead) * 15.0); // Don't crowd
-        };
-        if (_distToLead > 6.5) then {
-            _cohesionPenalty = _cohesionPenalty + ((_distToLead - 6.5) * 22.0); // Don't lag
-        };
-        if (_distToLead > 10.0) then {
-            _cohesionPenalty = _cohesionPenalty + 250.0; // Critical separation
+
+        // When Lead is providing overwatch or waiting at a corner, Wingman MUST advance to a support cover (3.5m-12m)!
+        private _leadIsCovering = _leadUnit getVariable ["AAI_IsProvidingCover", false];
+        private _leadIsWaiting = _leadUnit getVariable ["AAI_LeadWaitingForWingman", false];
+
+        if (_leadIsCovering || _leadIsWaiting) then {
+            // Wingman catching up: ideal support cover is 3.5m to 12.0m from Lead!
+            if (_distToLead > 14.0) then {
+                _cohesionPenalty = (_distToLead - 14.0) * 20.0; // Don't lag behind > 14m
+            };
+            if (_distToLead < 2.8) then {
+                _cohesionPenalty = (2.8 - _distToLead) * 15.0; // Don't crowd Lead
+            };
+            // Decisive bonus for bounding up to support Lead:
+            if (_distToLead >= 3.2 && _distToLead <= 12.0) then {
+                _cohesionPenalty = -45.0;
+            };
+            // Only penalize overtaking if significantly ahead (> 3.5m past lead towards obj)
+            if (_candDistToObj < _leadDistToObj - 3.5) then {
+                _cohesionPenalty = _cohesionPenalty + 200.0;
+            };
+        } else {
+            // Normal advance when Lead is maneuvering forward
+            if (_candDistToObj < _leadDistToObj - 1.0) then {
+                _cohesionPenalty = _cohesionPenalty + 200.0;
+            };
+            if (_distToLead < 3.0) then {
+                _cohesionPenalty = _cohesionPenalty + ((3.0 - _distToLead) * 15.0);
+            };
+            if (_distToLead > 8.0) then {
+                _cohesionPenalty = _cohesionPenalty + ((_distToLead - 8.0) * 20.0);
+            };
+            if (_distToLead > 14.0) then {
+                _cohesionPenalty = _cohesionPenalty + 200.0;
+            };
         };
     } else {
         // POINTMAN (Lead): In leapfrog bounds across gaps (bridges/riverbeds), Pointman is the lead scout!
@@ -750,6 +790,7 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
                   + _corridorPenalty
                   + _crowdingPenalty
                   + _visitedPenalty
+                  + _abortedPenalty
                   + _kgModifier 
                   + _maneuverModifier
                   + _cohesionPenalty
@@ -841,9 +882,9 @@ if (!isNull _buddy && {alive _buddy}) then {
         // POINTMAN (LEAD):
         private _waitingForWing = _unit getVariable ["AAI_LeadWaitingForWingman", false];
         if (_waitingForWing) then {
-            private _wingArrived = (_buddyCovering && {_distToBuddy <= 7.5});
+            private _wingArrived = (_buddyCovering && {_distToBuddy <= 14.0});
             private _waitStartTime = _unit getVariable ["AAI_LeadWaitStartTime", time];
-            if (_wingArrived || {time - _waitStartTime > 6.0}) then {
+            if (_wingArrived || {time - _waitStartTime > 4.5}) then {
                 _unit setVariable ["AAI_LeadWaitingForWingman", false];
                 _unit setVariable ["AAI_IsProvidingCover", false];
                 [_unit, "Je progresse vers l'angle suivant ! Couvre l'axe !", "ORDER"] call AAI_fnc_tacticalRadio;

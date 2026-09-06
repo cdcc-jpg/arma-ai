@@ -28,8 +28,10 @@ class Header {
 // CfgFunctions Registration
 // =============================================================================
 class CfgFunctions {
+    recompile = 1;
     class AAI {
         tag = "AAI";
+        compileFinal = 0;
 
         class Grounding {
             file = "src\grounding";
