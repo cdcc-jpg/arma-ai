@@ -1,0 +1,54 @@
+/*
+    Author: Clement D. / Arma-AI Team
+    Mission: Agia Marina: Vanilla AI Benchmark (Stratis)
+    File: description.ext
+*/
+
+author = "Arma-AI Systems Engineering Team";
+onLoadName = "Agia Marina: Vanilla AI";
+onLoadMission = "1-to-1 Urban Benchmark in natural Agia Marina (No added props). BLUFOR uses native Arma 3 Vanilla AI.";
+briefingName = "Agia Marina - Vanilla AI Benchmark (Stratis)";
+overviewText = "1-to-1 Urban Benchmark in natural Agia Marina (No added props). BLUFOR uses native Arma 3 Vanilla AI.";
+
+// Mission Settings
+enableDebugConsole = 2;
+saving = 0;
+respawn = 3;
+respawnDelay = 3;
+respawnDialog = 0;
+respawnOnStart = -1;
+
+class Header {
+    gameType = Sandbox;
+    minPlayers = 1;
+    maxPlayers = 4;
+};
+
+// =============================================================================
+// CfgFunctions Registration
+// =============================================================================
+class CfgFunctions {
+    class AAI {
+        tag = "AAI";
+
+        class Grounding {
+            file = "src\grounding";
+            class perceiveObstacles {};
+            class computeCoverShadow {};
+            class evaluateStanceAffordance {};
+        };
+
+        class Controller {
+            file = "src\controller";
+            class tacticalTick {};
+            class executeMovement {};
+            class startAgentController {};
+            class updateKnowledgeGraph {};
+        };
+
+        class Debug {
+            file = "src\debug";
+            class drawTacticalOverlay {};
+        };
+    };
+};
