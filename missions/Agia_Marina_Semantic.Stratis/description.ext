@@ -36,6 +36,7 @@ class CfgFunctions {
             class perceiveObstacles {};
             class computeCoverShadow {};
             class evaluateStanceAffordance {};
+            class computeCornerSlices {};
         };
 
         class Controller {
@@ -44,6 +45,7 @@ class CfgFunctions {
             class executeMovement {};
             class startAgentController {};
             class updateKnowledgeGraph {};
+            class tacticalRadio {};
         };
 
         class Debug {

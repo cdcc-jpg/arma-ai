@@ -132,18 +132,38 @@ private _distToCurrentCover = if (count _currentCoverPoint >= 2) then { _unit di
 // SPRINT COMMITMENT: If currently bounding to a chosen cover, do NOT recalculate!
 // Let the soldier sprint at full speed without stopping, stuttering, or flip-flopping!
 // Arrival & In-Cover Assessment:
-// Within 2.8m, OR stopped/ready within 4.2m of target cover point
+// Within 2.5m of cover anchor, OR within 3.8m after 2.5s of transit, OR stopped/ready within 3.2m
 private _lastMoveTime = _unit getVariable ["AAI_LastMoveOrderTime", time];
-private _isArrived = (count _currentCoverPoint >= 2 && {_distToCurrentCover <= 2.8 || (_distToCurrentCover <= 4.2 && unitReady _unit && time - _lastMoveTime > 0.8)});
+private _moveStartTime = _unit getVariable ["AAI_MoveStartTime", time];
+private _transitDuration = time - _moveStartTime;
 
-// SPRINT COMMITMENT: If currently bounding to a chosen cover and hasn't arrived yet
+private _isArrived = (count _currentCoverPoint >= 2 && {
+    _distToCurrentCover <= 2.8 
+    || (_distToCurrentCover <= 4.5 && {_transitDuration > 2.0} && {speed _unit < 0.7}) 
+    || (_distToCurrentCover <= 4.0 && {_transitDuration > 2.5}) 
+    || (_distToCurrentCover <= 3.5 && {unitReady _unit} && {time - _lastMoveTime > 0.3})
+});
+
+// SPRINT COMMITMENT: If currently bounding to a chosen cover and hasn't reached arrival yet
 if (!_forceRecalc && {_currentState == "MOVING_TO_COVER"} && {count _currentCoverPoint >= 2} && {!_isArrived}) exitWith {
-    // Un-stick safety: if unit has been physically stuck for > 3.5s, force recalculate!
-    if (time - _lastMoveTime > 3.5 && {speed _unit < 0.2}) then {
+    // Keep sprint momentum and upright posture while bounding to cover!
+    if (unitPos _unit != "UP") then { _unit setUnitPos "UP"; };
+    _unit forceSpeed 15;
+    _unit doWatch objNull;
+
+    // Robust Un-stick & Transit Timeout Safety:
+    // Allow long sprints (up to 32m across bridges/riverbeds taking 6-7s).
+    // Only abort if sprint exceeds 8.0s and still far, or physically stationary for > 2.2s.
+    if ((_transitDuration > 8.0 && {_distToCurrentCover > 4.5}) || {time - _lastMoveTime > 2.2 && {speed _unit < 0.20}}) then {
         _unit setVariable ["AAI_LastMoveOrderTime", time];
+        _unit setVariable ["AAI_MoveStartTime", time];
         _unit setVariable ["AAI_TacticalState", "RECALCULATING"];
+        // Temporarily penalize this unreachable candidate
+        private _visList = _unit getVariable ["AAI_VisitedCoverPoints", []];
+        _visList pushBack [_currentCoverPoint, time];
+        _unit setVariable ["AAI_VisitedCoverPoints", _visList];
     } else {
-        if (time - _lastMoveTime > 2.0 && {speed _unit < 0.3}) then {
+        if (time - _lastMoveTime > 1.0 && {speed _unit < 0.8}) then {
             _unit setVariable ["AAI_LastMoveOrderTime", time];
             _unit doMove _currentCoverPoint;
         };
@@ -164,6 +184,7 @@ if (_isInCover) then {
     if (_unit getVariable ["AAI_CoverArrivalTime", 0] == 0) then {
         _unit setVariable ["AAI_CoverArrivalTime", time];
     };
+    _unit setVariable ["AAI_CrossingAnnounced", false];
 } else {
     _unit setVariable ["AAI_CoverArrivalTime", 0];
 };
@@ -171,60 +192,152 @@ if (_isInCover) then {
 private _dwellTime = if (_isInCover) then { time - (_unit getVariable ["AAI_CoverArrivalTime", time]) } else { 0 };
 
 // -------------------------------------------------------------------------
-// TACTICAL DWELL: Corner Pieing & Sector Clearance / Defensive Defilade
+// TACTICAL DWELL: Sector Clearance & Pieing the Corner ("Faire la tarte")
 // -------------------------------------------------------------------------
+// Initiates early from wide standoff (3.8m - 5.0m) to clear danger zones
+// before ever exposing body silhouette to pre-aimed defenders.
 private _targetDwell = if ((_unit getVariable ["AAI_TacticalRole", "Rifleman"]) == "Marksman") then { 
     6.0 
 } else { 
     if (_isAnticipatedThreat) then { 2.4 } else { 1.4 } 
 };
-if (!_forceRecalc && {_isInCover} && {_dwellTime < _targetDwell}) exitWith {
-    // Peek-defilade corner slicing ("Slicing the pie")
-    private _bestPeekPoint = _currentCoverData getOrDefault ["bestPeekPoint", []];
-    private _watchPos = _currentCoverData getOrDefault ["watchPos", _threatPos];
-    private _chosenPoint = _currentCoverPoint;
-    private _isPeeking = false;
 
-    if (count _bestPeekPoint >= 3) then {
-        private _peekCycleTime = _unit getVariable ["AAI_PeekCycleTime", 0];
-        _isPeeking = _unit getVariable ["AAI_IsPeeking", false];
-        if (time - _peekCycleTime > 0.8) then {
-            _isPeeking = !_isPeeking;
-            _unit setVariable ["AAI_IsPeeking", _isPeeking];
-            _unit setVariable ["AAI_PeekCycleTime", time];
+private _activeObs = _currentCoverData getOrDefault ["obstacle", objNull];
+private _clearedObstacles = _unit getVariable ["AAI_ClearedObstacles", []];
+private _isObstacleCleared = (!isNull _activeObs && {_activeObs in _clearedObstacles});
+
+if (!_forceRecalc && {_isInCover} && {!_isObstacleCleared} && {_dwellTime < _targetDwell}) exitWith {
+    private _bestPeekPoint = _currentCoverData getOrDefault ["bestPeekPoint", []];
+    private _cornerSlices = _unit getVariable ["AAI_CurrentCornerSlices", []];
+    private _cachedCover = _unit getVariable ["AAI_SlicesCoverPoint", []];
+    private _isDifferentObstacle = (_cachedCover isEqualTo [] || {(_cachedCover distance2D _currentCoverPoint) > 3.0});
+
+    // Compute 5 progressive CQB quadrant slices along a wide standoff arc (3.8m back from corner)
+    if (_cornerSlices isEqualTo [] || {_isDifferentObstacle}) then {
+        private _dangerTarget = if (!isNull _activeThreat) then { eyePos _activeThreat } else {
+            private _obj = _unit getVariable ["AAI_TacticalObjective", []];
+            if (count _obj >= 2) then { _obj } else { _threatPos }
         };
-        _chosenPoint = if (_isPeeking) then { _bestPeekPoint } else { _currentCoverPoint };
+
+        if (count _bestPeekPoint >= 2) then {
+            _cornerSlices = [
+                _unit,
+                _bestPeekPoint,
+                _currentCoverPoint,
+                _dangerTarget,
+                5,
+                3.80
+            ] call AAI_fnc_computeCornerSlices;
+            _unit setVariable ["AAI_CurrentCornerSlices", _cornerSlices];
+            _unit setVariable ["AAI_SlicesCoverPoint", _currentCoverPoint];
+            _unit setVariable ["AAI_CurrentSliceIndex", 1];
+            _unit setVariable ["AAI_SliceStepTime", time];
+            _unit setVariable ["AAI_CornerCleared", false];
+            _unit setVariable ["AAI_LeadWaitingForWingman", false];
+            _unit setVariable ["AAI_LeadWaitStartTime", time];
+            [_unit, "Zone de danger à l'angle ! Découpage en cours...", "DANGER"] call AAI_fnc_tacticalRadio;
+        };
     };
 
-    // Active visual sweep during corner pie slice to discover hidden hostiles organically
-    if (_isPeeking) then {
-        private _eyePosASL = eyePos _unit;
-        private _spottedEnemy = objNull;
+    private _sliceIndex = _unit getVariable ["AAI_CurrentSliceIndex", 1];
+    private _sliceStepTime = _unit getVariable ["AAI_SliceStepTime", time];
+    private _totalSlices = count _cornerSlices;
+
+    // Resolve active slice waypoint and tangent watch vector
+    private _chosenPoint = _currentCoverPoint;
+    private _watchPos = _currentCoverData getOrDefault ["watchPos", _threatPos];
+    private _sliceAngle = 0;
+
+    if (_totalSlices > 0) then {
+        private _safeIdx = (_sliceIndex min _totalSlices) - 1;
+        private _activeSlice = _cornerSlices select _safeIdx;
+        _chosenPoint = _activeSlice getOrDefault ["pos", _currentCoverPoint];
+        _watchPos = _activeSlice getOrDefault ["watchPos", _threatPos];
+        _sliceAngle = _activeSlice getOrDefault ["angleDeg", 0];
+    };
+
+    // Active visual sweep: Check if any hostile in sector is revealed by this slice
+    private _eyePosASL = eyePos _unit;
+    private _spottedEnemy = objNull;
+    {
+        if (side _x != side _unit && {side _x != civilian} && {alive _x} && {(_unit distance _x) < 130}) then {
+            private _targetEye = eyePos _x;
+            private _vis = [_unit, "VIEW", _x] checkVisibility [_eyePosASL, _targetEye];
+            if (_vis > 0.12) exitWith {
+                _spottedEnemy = _x;
+            };
+        };
+    } forEach allUnits;
+
+    private _hasActiveContact = false;
+    if (!isNull _spottedEnemy) then {
+        _hasActiveContact = true;
+        _unit reveal [_spottedEnemy, 4];
+        (group _unit) reveal [_spottedEnemy, 4];
+        _activeThreat = _spottedEnemy;
+        _threatPos = eyePos _spottedEnemy;
+        _watchPos = eyePos _spottedEnemy;
+        _unit setVariable ["AAI_ActiveThreat", _spottedEnemy];
         {
-            if (side _x != side _unit && {side _x != civilian} && {alive _x} && {(_unit distance _x) < 130}) then {
-                private _targetEye = eyePos _x;
-                private _vis = [_unit, "VIEW", _x] checkVisibility [_eyePosASL, _targetEye];
-                if (_vis > 0.15) exitWith {
-                    _spottedEnemy = _x;
+            if (_x != _unit && {alive _x}) then {
+                _x setVariable ["AAI_ActiveThreat", _spottedEnemy];
+            };
+        } forEach (units group _unit);
+        // Lock onto enemy from this slice: do not advance to next slice while engaging!
+        _unit setVariable ["AAI_SliceStepTime", time];
+
+        // RADIO CALLOUT: CONTACT!
+        [_unit, format ["CONTACT ENNEMI %1m ! FEU !", round (_unit distance _spottedEnemy)], "CONTACT"] call AAI_fnc_tacticalRadio;
+
+        // INSTANT LETHAL PRE-EMPTIVE BURST (ZERO DELAY!)
+        _unit doTarget _spottedEnemy;
+        _unit doWatch _spottedEnemy;
+        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+        _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+
+        // Alert teammate to lay down crossfire
+        private _buddyUnit = _unit getVariable ["AAI_BuddyUnit", objNull];
+        if (!isNull _buddyUnit && {alive _buddyUnit}) then {
+            _buddyUnit setVariable ["AAI_ActiveThreat", _spottedEnemy];
+            _buddyUnit doTarget _spottedEnemy;
+            _buddyUnit doWatch _spottedEnemy;
+            _buddyUnit forceWeaponFire [currentMuzzle _buddyUnit, "Single"];
+            _buddyUnit forceWeaponFire [currentMuzzle _buddyUnit, "Single"];
+            [_buddyUnit, "Ennemi pris pour cible ! Tir d'appui croisé !", "CONTACT"] call AAI_fnc_tacticalRadio;
+        };
+
+        systemChat format ["[TICO ONTOLOGIE] ENNEMI ACQUIS DANS LA TRANCHE %1/5 (%2m, Angle: %3 deg) ! TIR IMMEDIAT !", _sliceIndex min _totalSlices, round (_unit distance _spottedEnemy), _sliceAngle];
+    } else {
+        // No enemy spotted in current slice: advance to next quadrant with fluid CQB cadence (0.22s)
+        if (time - _sliceStepTime > 0.22) then {
+            if (_sliceIndex < _totalSlices) then {
+                _sliceIndex = _sliceIndex + 1;
+                _unit setVariable ["AAI_CurrentSliceIndex", _sliceIndex];
+                _unit setVariable ["AAI_SliceStepTime", time];
+            } else {
+                _unit setVariable ["AAI_IsProvidingCover", true];
+                if (!(_unit getVariable ["AAI_CornerCleared", false])) then {
+                    _unit setVariable ["AAI_CornerCleared", true];
+                    if (!isNull _activeObs) then {
+                        _clearedObstacles pushBackUnique _activeObs;
+                        _unit setVariable ["AAI_ClearedObstacles", _clearedObstacles];
+                    };
+                    if (_unit == leader (group _unit)) then {
+                        _unit setVariable ["AAI_LeadWaitingForWingman", true];
+                        _unit setVariable ["AAI_LeadWaitStartTime", time];
+                    };
+                    [_unit, "Secteur clair ! À toi de bondir, je te couvre !", "ORDER"] call AAI_fnc_tacticalRadio;
                 };
             };
-        } forEach allUnits;
-
-        if (!isNull _spottedEnemy) then {
-            _unit reveal [_spottedEnemy, 4];
-            _activeThreat = _spottedEnemy;
-            _threatPos = eyePos _spottedEnemy;
-            _unit setVariable ["AAI_ActiveThreat", _spottedEnemy];
-            _unit setVariable ["AAI_CoverArrivalTime", 0]; // Reset dwell to engage immediately
-            systemChat format ["[TICO ONTOLOGIE] CONTACT VISUEL ! Ennemi decouvert au coin (%1m) !", round (_unit distance _spottedEnemy)];
         };
     };
 
-    // Dynamic tactical sub-state for telemetry HUD and 3D visualizer
-    private _subState = if (_isAnticipatedThreat) then {
-        if (_isPeeking) then { "PIEING_CORNER" } else { "HOLDING_COVER" }
+    // Sub-state telemetry
+    private _subState = if (_hasActiveContact) then {
+        format ["PIE_FIRING [%1/%2] (%3 deg)", _sliceIndex min _totalSlices, _totalSlices, _sliceAngle]
     } else {
-        if (_isPeeking) then { "PEEK_FIRING" } else { "IN_DEFILADE" }
+        format ["PIE_SLICING [%1/%2] (%3 deg)", _sliceIndex min _totalSlices, _totalSlices, _sliceAngle]
     };
     _unit setVariable ["AAI_TacticalState", _subState];
 
@@ -244,17 +357,32 @@ if (!_forceRecalc && {_isInCover} && {_dwellTime < _targetDwell}) exitWith {
         ["affordance", _unit getVariable ["AAI_TargetAffordance", createHashMap]],
         ["threat", if (!isNull _activeThreat) then { _activeThreat } else { _threatPos }],
         ["isExposed", _hasLOS],
-        ["dwellTime", _dwellTime]
+        ["dwellTime", _dwellTime],
+        ["sliceIndex", _sliceIndex],
+        ["sliceAngle", _sliceAngle]
     ]
 };
 
-// 2.1 Track recently occupied covers to prevent oscillation / ping-pong loops
+// 2.1 Track recently departed covers to prevent oscillation / ping-pong loops
 private _visitedCovers = _unit getVariable ["AAI_VisitedCoverPoints", []];
-_visitedCovers = _visitedCovers select { (time - (_x select 1)) < 40.0 };
+_visitedCovers = _visitedCovers select { (time - (_x select 1)) < 45.0 };
 
+// A cover is only recorded as visited once the unit has vacated and moved past it (> 2.5m away)
+private _lastSettledCover = _unit getVariable ["AAI_LastSettledCoverPoint", []];
 if (_isInCover && {count _currentCoverPoint >= 2}) then {
-    if ({(_x select 0) distance2D _currentCoverPoint < 2.5} count _visitedCovers == 0) then {
-        _visitedCovers pushBack [_currentCoverPoint, time];
+    _unit setVariable ["AAI_LastSettledCoverPoint", _currentCoverPoint];
+    private _coverHist = _unit getVariable ["AAI_RecentCoverHistory", []];
+    if ({_x distance2D _currentCoverPoint < 3.0} count _coverHist == 0) then {
+        _coverHist pushBack _currentCoverPoint;
+        if (count _coverHist > 4) then { _coverHist deleteAt 0; };
+        _unit setVariable ["AAI_RecentCoverHistory", _coverHist];
+    };
+} else {
+    if (count _lastSettledCover >= 2 && {_unit distance2D _lastSettledCover > 2.5}) then {
+        if ({(_x select 0) distance2D _lastSettledCover < 3.0} count _visitedCovers == 0) then {
+            _visitedCovers pushBack [_lastSettledCover, time];
+        };
+        _unit setVariable ["AAI_LastSettledCoverPoint", []];
     };
 };
 _unit setVariable ["AAI_VisitedCoverPoints", _visitedCovers];
@@ -376,18 +504,31 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
     if (count _objectivePos >= 2) then {
         private _unitDistToObj = _unit distance2D _objectivePos;
         private _distCoverToObj = _cPoint distance2D _objectivePos;
-        _objectiveCost = _distCoverToObj * 0.5;
+        _objectiveCost = _distCoverToObj * 2.0;
 
-        // Strict penalty for running backwards away from the objective
-        if (_distCoverToObj > _unitDistToObj + 1.5) then {
-            _retreatPenalty = (_distCoverToObj - _unitDistToObj) * 20.0;
+        // High-water mark ratchet: track closest distance reached to current objective
+        private _minDistToObj = _unit getVariable ["AAI_MinDistToObjective", 9999];
+        if (_unitDistToObj < _minDistToObj) then {
+            _minDistToObj = _unitDistToObj;
+            _unit setVariable ["AAI_MinDistToObjective", _minDistToObj];
+        };
+
+        // Strict penalty for candidate covers further from objective than unit's current position (+1.0m tolerance)
+        if (_distCoverToObj > _unitDistToObj + 1.0) then {
+            _retreatPenalty = 500.0 + ((_distCoverToObj - _unitDistToObj) * 40.0);
+        };
+
+        // Strict ratchet barrier: never regress further than the closest point achieved towards this objective
+        if (_distCoverToObj > _minDistToObj + 2.5) then {
+            _retreatPenalty = _retreatPenalty + 800.0;
         };
     };
 
-    // Tactical CQB Bounding Range: strictly enforce 4m to 12m bounds!
-    // Heavy progressive penalty for attempting to sprint > 12m down the street in a single bound
-    if (_distFromUnit > 12.0) then {
-        _boundPenalty = (_distFromUnit - 12.0) * 16.0;
+    // Tactical CQB & Bridge Crossing Bounding Range: Allow athletic sprints up to 32m!
+    // Crucial for crossing open danger areas (dry riverbeds, culverts, road bridges, town plazas)
+    // Only progressively penalize beyond 32m to avoid map-wide leaps
+    if (_distFromUnit > 32.0) then {
+        _boundPenalty = (_distFromUnit - 32.0) * 12.0;
     };
 
     // Dynamic Maneuver & Leapfrogging Incentive under fire:
@@ -405,19 +546,22 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
         private _candDistToObj = _cPoint distance2D _objectivePos;
 
         if (_dwellTime < _maxDwell) then {
-            if (_distToCurrent < 1.8) then { _maneuverModifier = -15.0; }; // Hold current spot during active dwell
+            if (_distToCurrent < 2.0) then { _maneuverModifier = -25.0; }; // Hold current spot during active dwell
         } else {
-            // Dwell expired: MUST LEAPFROG FORWARD TOWARDS OBJECTIVE!
-            if (_distToCurrent < 2.5) then {
-                _maneuverModifier = 600.0; // Stagnation penalty: NEVER stay at the same cover!
+            // Dwell expired: ONLY LEAPFROG FORWARD TOWARDS OBJECTIVE!
+            if (_distToCurrent < 2.0) then {
+                // If dwell is expired, do NOT penalize current position by 600!
+                // Cost is neutral (0.0): if a valid forward position exists, its forward bonus (-65 to -150) will win naturally.
+                // If NO forward cover exists, holding position is safe and prevents ping-ponging across the riverbed!
+                _maneuverModifier = 0.0;
             } else {
-                if (_candDistToObj >= _currDistToObj - 0.8) then {
-                    // Backwards or lateral: STRICTLY PROHIBITED (destroys oscillation loops!)
-                    _maneuverModifier = 350.0 + ((_candDistToObj - _currDistToObj) max 0) * 25.0;
+                if (_candDistToObj >= _currDistToObj - 1.5) then {
+                    // Lateral (e.g. crossing riverbed without advancing) or backward: STRICTLY FORBIDDEN (+700.0)
+                    _maneuverModifier = 700.0 + ((_candDistToObj - _currDistToObj) max 0) * 35.0;
                 } else {
-                    // Forward progress bonus proportional to advance (bounded)
-                    private _advGained = (_currDistToObj - _candDistToObj) min 14.0;
-                    _maneuverModifier = -45.0 - (_advGained * 2.5);
+                    // Genuine forward progress: strong rewarding bonus!
+                    private _advGained = (_currDistToObj - _candDistToObj) min 30.0;
+                    _maneuverModifier = -65.0 - (_advGained * 4.0);
                 };
             };
         };
@@ -434,8 +578,7 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
             _corridorPenalty = (_lateralDev - _corridorHalfWidth) * 50.0;
         };
     } else {
-        // Street Advance Corridor Alignment (Keep agent in the street / along street walls)
-        // Strictly penalize wandering into residential backyards away from the street!
+        // Street Advance Corridor Alignment (Allow up to 18.0m width for bridge crossings and winding alleys)
         if (count _objectivePos >= 2) then {
             private _unitPos2D = [getPosATL _unit select 0, getPosATL _unit select 1];
             private _objPos2D = [_objectivePos select 0, _objectivePos select 1];
@@ -447,9 +590,9 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
                 private _projDist = (_toPoint select 0) * (_axisDir select 0) + (_toPoint select 1) * (_axisDir select 1);
                 private _perpVec = _toPoint vectorDiff (_axisDir vectorMultiply _projDist);
                 private _lateralDist = vectorMagnitude _perpVec;
-                // Allow up to 5.5m width (street width + sidewalk stone walls)
-                if (_lateralDist > 5.5) then {
-                    _corridorPenalty = (_lateralDist - 5.5) * 20.0;
+                // Allow up to 18.0m lateral width for road curvature and bridge approaches
+                if (_lateralDist > 18.0) then {
+                    _corridorPenalty = (_lateralDist - 18.0) * 15.0;
                 };
             };
         };
@@ -460,20 +603,46 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
     {
         if (_x != _unit && {alive _x}) then {
             private _claimed = (_x getVariable ["AAI_TargetCover", createHashMap]) getOrDefault ["coverPoint", []];
-            if (count _claimed > 0 && {_cPoint distance2D _claimed < 3.8}) then {
-                _crowdingPenalty = _crowdingPenalty + 30.0;
+            if (count _claimed > 0 && {_cPoint distance2D _claimed < 4.2}) then {
+                _crowdingPenalty = _crowdingPenalty + 60.0;
             };
         };
     } forEach (units group _unit);
 
-    // Anti-Oscillation / Visited Cover Memory: Strictly prohibit returning to recently occupied covers!
+    // Anti-Oscillation / Visited Cover Memory: Strictly prohibit returning to recently departed covers!
     private _visitedPenalty = 0.0;
-    {
-        _x params ["_vPos"];
-        if (_cPoint distance2D _vPos < 3.5) exitWith {
-            _visitedPenalty = 800.0;
+    // Current target cover or currently occupied cover is NEVER penalized!
+    if (count _currentCoverPoint == 0 || {_cPoint distance2D _currentCoverPoint >= 2.2}) then {
+        // ONLY penalize departed covers if the candidate does NOT advance closer to the objective!
+        // If moving to this cover makes genuine forward progress towards the objective, it is an advance, not an oscillation!
+        private _currDistToObj = if (count _currentCoverPoint >= 2 && {count _objectivePos >= 2}) then { _currentCoverPoint distance2D _objectivePos } else { 9999 };
+        private _candDistToObj = if (count _objectivePos >= 2) then { _cPoint distance2D _objectivePos } else { 0 };
+        private _isAdvancingTowardsObj = (_candDistToObj < (_currDistToObj - 1.5));
+
+        if (!_isAdvancingTowardsObj) then {
+            {
+                _x params ["_vPos"];
+                if (_cPoint distance2D _vPos < 3.8) exitWith {
+                    _visitedPenalty = 1500.0; // Absolute barrier: never return laterally or backwards!
+                };
+            } forEach _visitedCovers;
+
+            // Loop Breaker: check recent cover history
+            private _coverHist = _unit getVariable ["AAI_RecentCoverHistory", []];
+            {
+                if (_cPoint distance2D _x < 3.8) exitWith {
+                    _visitedPenalty = 2000.0; // Absolute barrier: never cycle back into recent covers!
+                };
+            } forEach _coverHist;
         };
-    } forEach _visitedCovers;
+    };
+
+    // Target Commitment / Stickiness: Strongly incentivize sticking with the currently assigned cover
+    // to eradicate flitting ("papillonnage") between left and right walls on minor score noise!
+    private _commitmentBonus = 0.0;
+    if (count _currentCoverPoint >= 2 && {_cPoint distance2D _currentCoverPoint < 2.5}) then {
+        _commitmentBonus = 35.0;
+    };
 
     // Dynamic Semantic Learning Modifier: Query learned penalties/bonuses from Knowledge Graph
     private _kgModifier = ["GET_PENALTY", [_cPoint]] call AAI_fnc_updateKnowledgeGraph;
@@ -511,15 +680,49 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
         default {};
     };
 
-    // Mutual Bounding Overwatch: If a fireteam buddy is IN_COVER, advance with bounding confidence
+    // Mutual Bounding Overwatch: If a fireteam buddy is in cover or slicing, advance with bounding confidence
     private _buddies = (units group _unit) select { _x != _unit && {alive _x} };
     private _overwatchActive = false;
     {
-        if ((_x getVariable ["AAI_TacticalState", "IDLE"]) == "IN_COVER") exitWith {
+        private _bState = _x getVariable ["AAI_TacticalState", "IDLE"];
+        if (_bState in ["IN_COVER", "HOLDING_COVER"] || {("PIE_" in _bState)}) exitWith {
             _overwatchActive = true;
         };
     } forEach _buddies;
-    private _overwatchBonus = if (_overwatchActive) then { 3.5 } else { 0.0 };
+    private _overwatchBonus = if (_overwatchActive) then { 5.0 } else { 0.0 };
+
+    // Binôme Cohesion: Pointman leads the advance, Wingman provides tight staggered overwatch (4m-7m)
+    private _leadUnit = leader (group _unit);
+    private _cohesionPenalty = 0.0;
+    if (_unit != _leadUnit && {alive _leadUnit} && {count _objectivePos >= 2}) then {
+        private _leadDistToObj = _leadUnit distance2D _objectivePos;
+        private _candDistToObj = _cPoint distance2D _objectivePos;
+        // Wingman must not overtake pointman (> 1.0m ahead towards objective)
+        if (_candDistToObj < _leadDistToObj - 1.0) then {
+            _cohesionPenalty = _cohesionPenalty + 200.0;
+        };
+        // Wingman tight leash: ideal distance to lead is 3.5m to 6.5m in urban CQB
+        private _distToLead = _cPoint distance2D (getPosATL _leadUnit);
+        if (_distToLead < 3.0) then {
+            _cohesionPenalty = _cohesionPenalty + ((3.0 - _distToLead) * 15.0); // Don't crowd
+        };
+        if (_distToLead > 6.5) then {
+            _cohesionPenalty = _cohesionPenalty + ((_distToLead - 6.5) * 22.0); // Don't lag
+        };
+        if (_distToLead > 10.0) then {
+            _cohesionPenalty = _cohesionPenalty + 250.0; // Critical separation
+        };
+    } else {
+        // POINTMAN (Lead): In leapfrog bounds across gaps (bridges/riverbeds), Pointman is the lead scout!
+        private _buddyUnit = _unit getVariable ["AAI_BuddyUnit", objNull];
+        if (_unit == _leadUnit && {!isNull _buddyUnit} && {alive _buddyUnit}) then {
+            private _distToWing = _cPoint distance2D (getPosATL _buddyUnit);
+            // Allow bounds up to 20m across open danger areas without cohesion penalty for the scout
+            if (_distToWing > 20.0) then {
+                _cohesionPenalty = _cohesionPenalty + (((_distToWing - 20.0) * 3.0) min 25.0);
+            };
+        };
+    };
 
     // Field of Fire / Sector Engagement Utility
     // Reward covers that offer clear corner peeking into the street; penalize dead-ends
@@ -549,6 +752,8 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
                   + _visitedPenalty
                   + _kgModifier 
                   + _maneuverModifier
+                  + _cohesionPenalty
+                  - _commitmentBonus
                   - (_quality * _wQuality) 
                   - _heightBonus
                   - _roleBonus
@@ -576,7 +781,7 @@ private _distToCover = _unit distance2D _coverPoint;
 private _isAtCover = (_distToCover <= 2.5);
 
 private _chosenPoint = _coverPoint;
-private _chosenStance = "MIDDLE";
+private _chosenStance = "UP";
 
 // Peek-Defilade Cycle: ONLY activates once the unit has safely arrived at cover!
 if (_isAtCover && {count _bestPeekPoint >= 3}) then {
@@ -601,7 +806,23 @@ if (_isAtCover && {count _bestPeekPoint >= 3}) then {
 } else {
     // IN TRANSIT: Run directly to the solid cover anchor without oscillating!
     _chosenPoint = _coverPoint;
-    _chosenStance = "MIDDLE";
+    // Dynamic CQB Stance: Run upright ("UP") for full athletic sprint & movement in transit!
+    // Drop to "MIDDLE" when reaching cover (< 2.2m) or under immediate suppression!
+    private _threatDist = if (!isNull _activeThreat) then {
+        _unit distance2D _activeThreat
+    } else {
+        if (count _threatPos >= 2) then { _unit distance2D _threatPos } else { 999 }
+    };
+
+    _chosenStance = if (_distToCover < 2.2 || {_isAtCover}) then {
+        _chosenAffordance getOrDefault ["stance", "MIDDLE"]
+    } else {
+        if (!isNull _activeThreat && {_hasLOS} && {_threatDist < 25.0}) then {
+            "MIDDLE"
+        } else {
+            "UP"
+        }
+    };
     _unit setVariable ["AAI_IsPeeking", false];
 };
 
@@ -610,29 +831,53 @@ private _distToGoal = _unit distance2D _chosenPoint;
 
 // Fireteam Pair Bounding Synchronization (Appui vs Assaut)
 private _buddy = _unit getVariable ["AAI_BuddyUnit", objNull];
-private _pairRole = _unit getVariable ["AAI_PairRole", "BASE_OF_FIRE"];
+private _isLead = (_unit == leader (group _unit));
 
 if (!isNull _buddy && {alive _buddy}) then {
-    private _buddyIsCovering = _buddy getVariable ["AAI_IsProvidingCover", false];
-    
-    if (_pairRole == "BASE_OF_FIRE") then {
-        if (_distToGoal <= 2.0) then {
-            _unit setVariable ["AAI_IsProvidingCover", true];
-            if (_dwellTime > 3.5 && {(_buddy distance2D ((_buddy getVariable ["AAI_TargetCover", createHashMap]) getOrDefault ["coverPoint", [0,0,0]])) < 2.5}) then {
-                _unit setVariable ["AAI_PairRole", "MANEUVER"];
+    private _buddyCovering = _buddy getVariable ["AAI_IsProvidingCover", false];
+    private _distToBuddy = _unit distance2D _buddy;
+
+    if (_isLead) then {
+        // POINTMAN (LEAD):
+        private _waitingForWing = _unit getVariable ["AAI_LeadWaitingForWingman", false];
+        if (_waitingForWing) then {
+            private _wingArrived = (_buddyCovering && {_distToBuddy <= 7.5});
+            private _waitStartTime = _unit getVariable ["AAI_LeadWaitStartTime", time];
+            if (_wingArrived || {time - _waitStartTime > 6.0}) then {
+                _unit setVariable ["AAI_LeadWaitingForWingman", false];
                 _unit setVariable ["AAI_IsProvidingCover", false];
-                _unit setVariable ["AAI_CoverDwellTime", 0.0];
+                [_unit, "Je progresse vers l'angle suivant ! Couvre l'axe !", "ORDER"] call AAI_fnc_tacticalRadio;
+            } else {
+                // Lead stays anchored in overwatch covering the street while Wingman bounds!
+                _unit setVariable ["AAI_IsProvidingCover", true];
+                _chosenPoint = _currentCoverPoint;
+            };
+        } else {
+            if (_distToGoal <= 2.2 || {_isInCover}) then {
+                _unit setVariable ["AAI_IsProvidingCover", true];
+            } else {
+                _unit setVariable ["AAI_IsProvidingCover", false];
             };
         };
     } else {
-        if (!_buddyIsCovering && {_distToGoal <= 2.0 && count _currentCoverPoint > 0}) then {
-            _chosenPoint = _currentCoverPoint;
-        } else {
-            if (_distToGoal <= 1.8) then {
-                _unit setVariable ["AAI_PairRole", "BASE_OF_FIRE"];
+        // WINGMAN (APPUI):
+        // If Lead is providing overwatch, waiting, or lagging (> 6.5m): Wingman bounds!
+        if (_buddyCovering || {_distToBuddy > 6.5}) then {
+            _unit setVariable ["AAI_IsProvidingCover", false];
+            if (_distToGoal <= 2.5 || {_isInCover}) then {
                 _unit setVariable ["AAI_IsProvidingCover", true];
-                _buddy setVariable ["AAI_PairRole", "MANEUVER"];
-                _buddy setVariable ["AAI_IsProvidingCover", false];
+                if (!(_unit getVariable ["AAI_EnBatterieAnnounced", false])) then {
+                    _unit setVariable ["AAI_EnBatterieAnnounced", true];
+                    [_unit, "En batterie ! Appui prêt !", "TACTICAL"] call AAI_fnc_tacticalRadio;
+                };
+            } else {
+                _unit setVariable ["AAI_EnBatterieAnnounced", false];
+            };
+        } else {
+            // Lead is currently maneuvering forward and Wingman is in position: Wingman holds overwatch!
+            if (_distToGoal <= 2.8 && {count _currentCoverPoint >= 2}) then {
+                _unit setVariable ["AAI_IsProvidingCover", true];
+                _chosenPoint = _currentCoverPoint;
             };
         };
     };
@@ -642,7 +887,7 @@ _unit setVariable ["AAI_TargetCover", _bestCandidate];
 _unit setVariable ["AAI_TargetAffordance", _chosenAffordance];
 _unit setVariable ["AAI_TargetWatchPos", _watchPos];
 
-private _newState = if (_distToGoal <= 1.8) then {
+private _newState = if (_distToGoal <= 2.6 || {_isArrived}) then {
     _unit setVariable ["AAI_CoverDwellTime", _dwellTime + 1.0];
     if (_isAnticipatedThreat) then {
         if (_unit getVariable ["AAI_IsPeeking", false]) then { "PIEING_CORNER" } else { "HOLDING_COVER" }
@@ -652,6 +897,14 @@ private _newState = if (_distToGoal <= 1.8) then {
 } else {
     _unit setVariable ["AAI_CoverDwellTime", 0.0];
     "MOVING_TO_COVER"
+};
+
+// State change detection: record transit start time and issue order once
+if (_newState == "MOVING_TO_COVER" && {_currentState != "MOVING_TO_COVER"}) then {
+    _unit setVariable ["AAI_MoveStartTime", time];
+    if (_isLead) then {
+        [_unit, "Je progresse vers l'angle suivant ! Couvre l'axe !", "ORDER"] call AAI_fnc_tacticalRadio;
+    };
 };
 
 _unit setVariable ["AAI_TacticalState", _newState];
@@ -691,14 +944,34 @@ _unit setVariable ["AAI_AffordanceType", _affordanceName];
 
 diag_log format ["[TICO ONTOLOGY ENGINE] %1", _logMsg];
 
-// Modulate tactical movement speed:
-// - "LIMITED": In cover, pieing an angle, or approaching cover destination (< 4.5m)
-// - "NORMAL": Tactical combat crouch-jog across bounds (5-12m)
-// - "FULL": Emergency sprint ONLY if actively exposed under direct fire far from cover
-private _dispatchSpeed = if (!isNull _activeThreat && {_hasLOS} && {_distToCover > 4.0}) then {
+// Contextual Semantic Speed Modulation:
+// - OPEN STREET CROSSING: If bounding across open street/road or exposed -> "FULL" SPRINT!
+// - CATCHING UP: If wingman is lagging behind (> 7.5m from lead) -> "FULL" SPRINT!
+// - WALL BOUND: Moving along continuous stone walls / covered alleyways -> "NORMAL" (combat jog)
+// - PRECISION SETTLING: Only drop to "LIMITED" when within 1.8m of final cover anchor!
+private _isOpenCrossing = false;
+if (_distToGoal > 3.0) then {
+    private _midPoint = [
+        ((getPosATL _unit select 0) + (_chosenPoint select 0)) * 0.5,
+        ((getPosATL _unit select 1) + (_chosenPoint select 1)) * 0.5,
+        0
+    ];
+    private _nearWalls = nearestObjects [_midPoint, ["Building", "House", "Wall", "Land_Stone_8m_F", "Land_Stone_4m_F"], 2.2];
+    if (count _nearWalls == 0 || {_hasLOS && {!isNull _activeThreat}}) then {
+        _isOpenCrossing = true;
+    };
+};
+
+private _isCatchingUp = (!_isLead && {!isNull _buddy} && {alive _buddy} && {_unit distance2D _buddy > 6.0});
+
+private _dispatchSpeed = if (_distToGoal >= 2.5 || {_isOpenCrossing} || {_isCatchingUp} || {(!isNull _activeThreat && {_hasLOS})}) then {
+    if (_isOpenCrossing && {_distToGoal > 4.0} && {!(_unit getVariable ["AAI_CrossingAnnounced", false])}) then {
+        _unit setVariable ["AAI_CrossingAnnounced", true];
+        [_unit, "Traversée de la ruelle en sprint !", "ORDER"] call AAI_fnc_tacticalRadio;
+    };
     "FULL"
 } else {
-    if (_distToGoal < 4.5 || {_isAtCover} || {_isAnticipatedThreat && {_distToGoal < 6.0}}) then {
+    if (_distToGoal < 1.4 || {_isAtCover}) then {
         "LIMITED"
     } else {
         "NORMAL"

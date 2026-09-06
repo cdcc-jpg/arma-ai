@@ -36,6 +36,7 @@ class CfgFunctions {
             class perceiveObstacles {};
             class computeCoverShadow {};
             class evaluateStanceAffordance {};
+            class computeCornerSlices {};
         };
 
         class Controller {

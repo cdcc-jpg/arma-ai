@@ -1,39 +1,41 @@
 /*
     Author: Clement D. / Arma-AI Team
-    Mission: Agia Marina: TICO Semantic AI Benchmark (Stratis)
+    Mission: Agia Marina: TICO Semantic AI Binome Benchmark (Stratis)
     File: init.sqf
 
     Description:
-        1-to-1 urban tactical benchmark in Agia Marina with ZERO added objects.
-        BLUFOR runner is commanded by the TICO Spatial Affordance AI engine.
-        Exact millimeter-identical configuration with the Vanilla benchmark mission.
-        7 OPFOR targets stationed along the natural winding artery of Agia Marina.
-        Calibrated tactical survivability: BLUFOR is vulnerable but durable (100 HP).
+        Urban tactical benchmark in the eastern terraced alleys of Agia Marina.
+        BLUFOR 2-man fireteam (Binome: Pointman + Wingman Support) operated
+        by the TICO Spatial Affordance AI engine with mutual overwatch and CQB corner pieing.
+        Millimeter-identical parity with the Vanilla benchmark mission.
+        5 OPFOR defensive ambush targets stationed along the winding residential alleys.
+        Calibrated tactical survivability damage model (100 HP per soldier).
 */
 
-diag_log "[AAI Benchmark Agia Marina] Initializing TICO Semantic AI Benchmark on Stratis (7 Targets)...";
+diag_log "[AAI Benchmark Agia Marina] Initializing TICO Semantic AI Binome Benchmark on Stratis...";
 
-// Enable full debug and simulation
+// Enable simulation and disable savegames
 enableSaving [false, false];
 
 // ============================================================================
-// 1. Mission Coordinates & 7 Fixed Urban Landmarks (Agia Marina, Stratis)
+// 1. Mission Coordinates & 5 Fixed Urban Alley Targets (Agia Marina, Stratis)
 // ============================================================================
-// Zero added objects: millimeter-identical positions to Vanilla mission
-private _bluforSpawnPos = [2990, 6002, 0];   // South street entrance
-private _spectatorPos   = [2982, 6010, 6.5]; // Flat roof overlooking street entrance
+// Sector: Approach Road & Eastern Terraced Residential Alleys (Ruelles Hautes Est)
+// 100% natural map architecture (stone walls, house corners, steps). Zero added props.
+private _bluforLeadSpawnPos = [3038, 5940, 0];   // South approach road (Pointman ~80m from Target 1)
+private _bluforWingSpawnPos = [3035, 5936, 0];   // Staggered 4m behind/left (Wingman)
+private _spectatorPos       = [3028, 5942, 8.5]; // Elevated vantage overlooking approach road & town entrance
 
 private _targetsConfig = [
-    [[2998, 6025, 0], 205, "1. Muret Entree Sud (~25m)"],
-    [[3010, 6046, 0], 210, "2. Terrasse du Marche (~50m)"],
-    [[3024, 6068, 0], 215, "3. Couloir Maisons Blanches (~75m)"],
-    [[3042, 6092, 0], 220, "4. Carrefour de l'Eglise (~105m)"],
-    [[3065, 6122, 0], 215, "5. Escalier Rue Haute (~140m)"],
-    [[3088, 6155, 0], 220, "6. Veranda du Cafe (~180m)"],
-    [[3118, 6195, 0], 225, "7. Redoute Sortie Nord (~230m)"]
+    [[3052, 6018, 0], 205, "1. Muret du Verger Sud (~80m)"],
+    [[3060, 6046, 0], 210, "2. Angle Maison Blanche (~110m)"],
+    [[3068, 6074, 0], 205, "3. Carrefour des Escaliers (~138m)"],
+    [[3078, 6104, 0], 215, "4. Cour des Oliviers (~168m)"],
+    [[3092, 6138, 0], 220, "5. Redoute Sommet Est (~202m)"]
 ];
 
-missionNamespace setVariable ["AAI_BluforSpawnPos", _bluforSpawnPos];
+missionNamespace setVariable ["AAI_BluforLeadSpawnPos", _bluforLeadSpawnPos];
+missionNamespace setVariable ["AAI_BluforWingSpawnPos", _bluforWingSpawnPos];
 missionNamespace setVariable ["AAI_SpectatorPos", _spectatorPos];
 missionNamespace setVariable ["AAI_TargetsConfig", _targetsConfig];
 
@@ -46,15 +48,31 @@ if (hasInterface) then {
         player allowDamage false;
         player setCaptive true;
         player hideObjectGlobal true;
-        player setPosATL [2982, 6010, 6.5];
+        player setPosATL [3028, 5942, 8.5];
         player setDir 25;
     };
 };
+
+// Helper to hot-reload live controller functions without needing Eden restart
+AAI_fnc_compileLiveControllers = {
+    if (fileExists "src\controller_live\fn_tacticalTick.sqf") then {
+        AAI_fnc_tacticalTick = compile preprocessFileLineNumbers "src\controller_live\fn_tacticalTick.sqf";
+        AAI_fnc_executeMovement = compile preprocessFileLineNumbers "src\controller_live\fn_executeMovement.sqf";
+        AAI_fnc_startAgentController = compile preprocessFileLineNumbers "src\controller_live\fn_startAgentController.sqf";
+        AAI_fnc_tacticalRadio = compile preprocessFileLineNumbers "src\controller_live\fn_tacticalRadio.sqf";
+        AAI_fnc_updateKnowledgeGraph = compile preprocessFileLineNumbers "src\controller_live\fn_updateKnowledgeGraph.sqf";
+        diag_log "[AAI Hot-Reload] Successfully loaded live controller functions from src\controller_live\";
+    };
+};
+call AAI_fnc_compileLiveControllers;
 
 // ============================================================================
 // 3. Reset & Launch Benchmark Trial Function
 // ============================================================================
 AAI_fnc_resetBenchmarkTrial = {
+    // Re-compile latest controller functions on each trial reset
+    call AAI_fnc_compileLiveControllers;
+
     // Reset camera if active
     if (!isNil "AAI_FPCam" && {!isNull AAI_FPCam}) then {
         AAI_FPCam cameraEffect ["TERMINATE", "BACK"];
@@ -69,10 +87,11 @@ AAI_fnc_resetBenchmarkTrial = {
     } forEach (missionNamespace getVariable ["AAI_ActiveUnits", []]);
 
     private _units = [];
-    private _bluforSpawnPos = missionNamespace getVariable ["AAI_BluforSpawnPos", [2990, 6002, 0]];
-    private _targetsConfig  = missionNamespace getVariable ["AAI_TargetsConfig", []];
+    private _leadSpawn = missionNamespace getVariable ["AAI_BluforLeadSpawnPos", [3038, 5940, 0]];
+    private _wingSpawn = missionNamespace getVariable ["AAI_BluforWingSpawnPos", [3035, 5936, 0]];
+    private _targetsConfig = missionNamespace getVariable ["AAI_TargetsConfig", []];
 
-    // Helper to spawn hostile OPFOR targets in natural village cover
+    // Helper to spawn hostile OPFOR defenders in natural village cover
     private _fnc_createHostile = {
         params ["_pos", "_dir", "_callsign"];
         private _grp = createGroup [east, true];
@@ -95,7 +114,7 @@ AAI_fnc_resetBenchmarkTrial = {
         _unit
     };
 
-    // Spawn the 7 OPFOR defenders in natural village positions
+    // Spawn the 5 OPFOR defenders along the alley
     private _spawnedTargets = [];
     private _targetPositions = [];
     {
@@ -105,54 +124,17 @@ AAI_fnc_resetBenchmarkTrial = {
         _targetPositions pushBack _pos;
     } forEach _targetsConfig;
 
-    // Spawn BLUFOR Semantic Runner at south street entrance
-    private _grpBlufor = createGroup [west, true];
-    _grpBlufor enableAttack false;
-    private _runner = _grpBlufor createUnit ["B_Soldier_F", _bluforSpawnPos, [], 0, "NONE"];
-    _runner setPosATL _bluforSpawnPos;
-    _runner setDir 15;
-    _runner setSkill 0.95;
-    _runner setBehaviour "AWARE";
-    _runner setCombatMode "RED";
-    _runner setSpeedMode "LIMITED";
-    _runner setUnitPos "MIDDLE";
-    _runner disableAI "AUTOCOMBAT";
-    _runner disableAI "COVER";
-    _runner disableAI "SUPPRESSION";
-    _runner disableConversation true;
-    _runner setVariable ["AAI_Callsign", "TICO SEMANTIC RUNNER"];
-    _runner setVariable ["AAI_TacticalRole", "Rifleman"];
-    _runner setVariable ["AAI_TacticalObjective", _targetPositions select 0];
-    _runner setVariable ["AAI_HealthPoints", 100];
-    _runner setVariable ["AAI_CurrentTargetIndex", 1];
+    // Helper: Apply calibrated tactical survivability damage model (100 HP)
+    private _fnc_applyDamageModel = {
+        params ["_unit"];
+        _unit setVariable ["AAI_HealthPoints", 100];
+        _unit addEventHandler ["HandleDamage", {
+            params ["_unit", "_selection", "_damage", "_source", "_projectile", "_hitIndex", "_instigator", "_hitPoint"];
 
-    // =========================================================================
-    // CALIBRATED TACTICAL SURVIVABILITY DAMAGE MODEL (100 HP - Vulnerable & Mortal)
-    // =========================================================================
-    // Torso hits cost ~8 to 12 HP. Limb hits cost ~4 to 6 HP.
-    // Prolonged exposure in open street kills the soldier in ~10-14 rounds.
-    // Tight cover & corner defilade peeks allow the soldier to survive!
-    _runner addEventHandler ["HandleDamage", {
-        params ["_unit", "_selection", "_damage", "_source", "_projectile", "_hitIndex", "_instigator", "_hitPoint"];
-
-        if (_selection in ["", "body", "spine1", "spine2", "spine3", "pelvis", "chest"]) then {
-            private _curHP = _unit getVariable ["AAI_HealthPoints", 100];
-            if (_curHP > 0) then {
-                private _loss = 8.0 + (random 4.0);
-                private _newHP = (_curHP - _loss) max 0;
-                _unit setVariable ["AAI_HealthPoints", _newHP];
-
-                if (_newHP <= 0) then {
-                    _unit setDamage 1; // Dies!
-                } else {
-                    _unit setDamage ((1 - (_newHP / 100)) min 0.89);
-                };
-            };
-        } else {
-            if (_selection in ["legs", "arms", "hands", "feet", "leftleg", "rightleg", "leftarm", "rightarm"]) then {
+            if (_selection in ["", "body", "spine1", "spine2", "spine3", "pelvis", "chest"]) then {
                 private _curHP = _unit getVariable ["AAI_HealthPoints", 100];
                 if (_curHP > 0) then {
-                    private _loss = 4.0 + (random 2.0);
+                    private _loss = 8.0 + (random 4.0);
                     private _newHP = (_curHP - _loss) max 0;
                     _unit setVariable ["AAI_HealthPoints", _newHP];
 
@@ -162,30 +144,100 @@ AAI_fnc_resetBenchmarkTrial = {
                         _unit setDamage ((1 - (_newHP / 100)) min 0.89);
                     };
                 };
-            };
-        };
+            } else {
+                if (_selection in ["legs", "arms", "hands", "feet", "leftleg", "rightleg", "leftarm", "rightarm"]) then {
+                    private _curHP = _unit getVariable ["AAI_HealthPoints", 100];
+                    if (_curHP > 0) then {
+                        private _loss = 4.0 + (random 2.0);
+                        private _newHP = (_curHP - _loss) max 0;
+                        _unit setVariable ["AAI_HealthPoints", _newHP];
 
-        damage _unit
-    }];
-    _units pushBack _runner;
+                        if (_newHP <= 0) then {
+                            _unit setDamage 1;
+                        } else {
+                            _unit setDamage ((1 - (_newHP / 100)) min 0.89);
+                        };
+                    };
+                };
+            };
+
+            damage _unit
+        }];
+    };
+
+    // =========================================================================
+    // SPAWN BLUFOR BINOME (Pointman + Wingman Support)
+    // =========================================================================
+    private _grpBlufor = createGroup [west, true];
+    _grpBlufor enableAttack false;
+
+    // 1. Pointman / Team Leader (Ouvreur)
+    private _lead = _grpBlufor createUnit ["B_Soldier_TL_F", _leadSpawn, [], 0, "NONE"];
+    _lead setPosATL _leadSpawn;
+    _lead setDir 25;
+    _lead setSkill 0.95;
+    _lead setBehaviour "AWARE";
+    _lead setCombatMode "RED";
+    _lead setSpeedMode "FULL";
+    _lead forceSpeed 15;
+    _lead setUnitPos "UP";
+    _lead disableAI "AUTOCOMBAT";
+    _lead disableAI "COVER";
+    _lead disableAI "SUPPRESSION";
+    _lead disableConversation true;
+    _lead setVariable ["AAI_Callsign", "TICO POINTMAN [LEAD]"];
+    _lead setVariable ["AAI_TacticalRole", "Rifleman"];
+    _lead setVariable ["AAI_PairRole", "MANEUVER"];
+    _lead setVariable ["AAI_TacticalObjective", _targetPositions select 0];
+    _lead setVariable ["AAI_CurrentTargetIndex", 1];
+    [_lead] call _fnc_applyDamageModel;
+    _units pushBack _lead;
+
+    // 2. Wingman / Support (Équipier d'Appui)
+    private _wing = _grpBlufor createUnit ["B_Soldier_AR_F", _wingSpawn, [], 0, "NONE"];
+    _wing setPosATL _wingSpawn;
+    _wing setDir 25;
+    _wing setSkill 0.95;
+    _wing setBehaviour "AWARE";
+    _wing setCombatMode "RED";
+    _wing setSpeedMode "FULL";
+    _wing forceSpeed 15;
+    _wing setUnitPos "UP";
+    _wing disableAI "AUTOCOMBAT";
+    _wing disableAI "COVER";
+    _wing disableAI "SUPPRESSION";
+    _wing disableConversation true;
+    _wing setVariable ["AAI_Callsign", "TICO WINGMAN [APPUI]"];
+    _wing setVariable ["AAI_TacticalRole", "Autorifleman"];
+    _wing setVariable ["AAI_PairRole", "BASE_OF_FIRE"];
+    _wing setVariable ["AAI_TacticalObjective", _targetPositions select 0];
+    _wing setVariable ["AAI_CurrentTargetIndex", 1];
+    [_wing] call _fnc_applyDamageModel;
+    _units pushBack _wing;
+
+    // Mutual Link
+    _grpBlufor selectLeader _lead;
+    _lead setVariable ["AAI_BuddyUnit", _wing];
+    _wing setVariable ["AAI_BuddyUnit", _lead];
 
     missionNamespace setVariable ["AAI_ActiveUnits", _units];
-    missionNamespace setVariable ["AAI_BluforRunner", _runner];
+    missionNamespace setVariable ["AAI_BluforLead", _lead];
+    missionNamespace setVariable ["AAI_BluforWingman", _wing];
     missionNamespace setVariable ["AAI_Targets", _spawnedTargets];
     missionNamespace setVariable ["AAI_TargetPositions", _targetPositions];
     missionNamespace setVariable ["AAI_TargetsKilledCount", 0];
     missionNamespace setVariable ["AAI_TrialStartTime", time];
 
     // =========================================================================
-    // TICO SEMANTIC AGENT CONTROLLER (Zero Omniscience - Organic Reconnaissance)
+    // START TICO SEMANTIC AGENT CONTROLLERS (Binome CQB Loop)
     // =========================================================================
-    // Initial threat is objNull: Agent relies on TICO anticipated threat vector (tac:ThreatVector)
-    // and organic line-of-sight sweep while slicing corners (tac:PeekAffordance).
-    [_runner, objNull, 0.30] spawn AAI_fnc_startAgentController;
+    [_lead, objNull, 0.28] spawn AAI_fnc_startAgentController;
+    sleep 0.12;
+    [_wing, objNull, 0.28] spawn AAI_fnc_startAgentController;
 
-    // Multi-stage urban objective coordinator through the 7 natural village targets
-    [_runner, _spawnedTargets, _targetPositions] spawn {
-        params ["_u", "_targets", "_positions"];
+    // Multi-stage urban objective coordinator through the 5 natural alley targets
+    [_lead, _wing, _spawnedTargets, _targetPositions] spawn {
+        params ["_lead", "_wing", "_targets", "_positions"];
 
         for "_i" from 0 to ((count _targets) - 1) do {
             private _currentTarget = _targets select _i;
@@ -193,48 +245,68 @@ AAI_fnc_resetBenchmarkTrial = {
             private _targetNum = _i + 1;
             private _callsign = _currentTarget getVariable ["AAI_TargetName", format ["Cible %1", _targetNum]];
 
-            _u setVariable ["AAI_TacticalObjective", _currentPos];
-            _u setVariable ["AAI_CurrentTargetIndex", _targetNum];
-            _u setVariable ["AAI_CoverArrivalTime", 0];
-            _u setVariable ["AAI_VisitedCoverPoints", []];
+            if (alive _lead) then {
+                _lead setVariable ["AAI_TacticalObjective", _currentPos];
+                _lead setVariable ["AAI_CurrentTargetIndex", _targetNum];
+                _lead setVariable ["AAI_CoverArrivalTime", 0];
+                _lead setVariable ["AAI_VisitedCoverPoints", []];
+                _lead setVariable ["AAI_RecentCoverHistory", []];
+                _lead setVariable ["AAI_MinDistToObjective", 9999];
+            };
 
-            systemChat format ["[AGIA MARINA - SEMANTIQUE] Progression tactique avec anticipation vers %1...", _callsign];
+            if (alive _wing) then {
+                _wing setVariable ["AAI_TacticalObjective", _currentPos];
+                _wing setVariable ["AAI_CurrentTargetIndex", _targetNum];
+                _wing setVariable ["AAI_CoverArrivalTime", 0];
+                _wing setVariable ["AAI_VisitedCoverPoints", []];
+                _wing setVariable ["AAI_RecentCoverHistory", []];
+                _wing setVariable ["AAI_MinDistToObjective", 9999];
+            };
 
-            // Wait until this target is killed or runner dies
-            waitUntil {!alive _currentTarget || {!alive _u}};
+            systemChat format ["[AGIA MARINA - SEMANTIQUE] Binome en progression vers %1...", _callsign];
 
-            if (!alive _u) exitWith {
-                systemChat format ["[AGIA MARINA - SEMANTIQUE] ECHEC ! Soldat BLUFOR elimine a la cible %1 (%2/7 neutralisees).", _targetNum, _i];
+            // Wait until this target is killed or both soldiers die
+            waitUntil {!alive _currentTarget || {(!alive _lead && {!alive _wing})}};
+
+            if (!alive _lead && {!alive _wing}) exitWith {
+                systemChat format ["[AGIA MARINA - SEMANTIQUE] ECHEC ! Le binome BLUFOR a ete elimine a la cible %1 (%2/5 neutralisees).", _targetNum, _i];
+            };
+
+            if (!alive _lead && {alive _wing}) then {
+                systemChat "[AGIA MARINA - SEMANTIQUE] Le Chef de binome est tombe ! L'equipier prend le commandement !";
+                (group _wing) selectLeader _wing;
             };
 
             missionNamespace setVariable ["AAI_TargetsKilledCount", _targetNum];
-            systemChat format ["[AGIA MARINA - SEMANTIQUE] %1 neutralisee ! (%2/7 terminees)", _callsign, _targetNum];
+            systemChat format ["[AGIA MARINA - SEMANTIQUE] %1 neutralisee ! (%2/5 terminees)", _callsign, _targetNum];
             sleep 0.4;
         };
 
-        if (alive _u) then {
-            private _finalHP = round (_u getVariable ["AAI_HealthPoints", 0]);
-            systemChat format ["[AGIA MARINA - SEMANTIQUE] VICTOIRE TOTALE ! Les 7 cibles d'Agia Marina ont ete neutralisees ! Sante restante : %1 HP", _finalHP];
+        if (alive _lead || alive _wing) then {
+            private _hpLead = if (alive _lead) then { round (_lead getVariable ["AAI_HealthPoints", 0]) } else { 0 };
+            private _hpWing = if (alive _wing) then { round (_wing getVariable ["AAI_HealthPoints", 0]) } else { 0 };
+            systemChat format ["[AGIA MARINA - SEMANTIQUE] VICTOIRE DU BINOME ! Les 5 cibles ont ete neutralisees ! (Lead: %1 HP, Wing: %2 HP)", _hpLead, _hpWing];
         };
     };
 
     // 3D Tactical Overlay setup
     if (missionNamespace getVariable ["AAI_3DOverlayActive", true]) then {
-        [true, _runner] call AAI_fnc_drawTacticalOverlay;
+        [true, _lead] call AAI_fnc_drawTacticalOverlay;
     };
 
-    systemChat "[BENCHMARK AGIA MARINA : SEMANTIQUE] Epreuve prete (7 cibles). F1 Reset | F2 FPV | F3 3D | Y/Z Zeus";
+    systemChat "[BENCHMARK AGIA MARINA : TICO BINOME] Epreuve prete (5 cibles). F1 Reset | F2 Camera (Lead/Wing/Spectateur) | F3 3D | Y/Z Zeus";
 };
 
 // ============================================================================
-// 4. First-Person AI Eyes Camera (Key: F2)
+// 4. Camera View Cycle (F2: Spectator -> Pointman FPV -> Wingman FPV)
 // ============================================================================
 AAI_fnc_cycleCameraView = {
     private _currentMode = missionNamespace getVariable ["AAI_CameraModeIndex", 0];
-    private _nextMode = if (_currentMode == 0) then { 1 } else { 0 };
+    private _nextMode = (_currentMode + 1) % 3; // 0 = Spectator, 1 = Lead, 2 = Wingman
     missionNamespace setVariable ["AAI_CameraModeIndex", _nextMode];
 
-    private _runner = missionNamespace getVariable ["AAI_BluforRunner", objNull];
+    private _lead = missionNamespace getVariable ["AAI_BluforLead", objNull];
+    private _wing = missionNamespace getVariable ["AAI_BluforWingman", objNull];
 
     if (!isNil "AAI_FPCam" && {!isNull AAI_FPCam}) then {
         AAI_FPCam cameraEffect ["TERMINATE", "BACK"];
@@ -242,14 +314,35 @@ AAI_fnc_cycleCameraView = {
         AAI_FPCam = nil;
     };
 
-    if (_nextMode == 1 && {!isNull _runner} && {alive _runner}) then {
-        AAI_FPCam = "camera" camCreate (eyePos _runner);
-        AAI_FPCam cameraEffect ["INTERNAL", "BACK"];
-        AAI_FPCam attachTo [_runner, [0, 0.12, 0.08], "head"];
-        systemChat "[CAMERA] Mode: YEUX DE L'IA (Vue subjective FPV).";
-    } else {
-        (vehicle player) switchCamera "INTERNAL";
-        systemChat "[CAMERA] Mode: GHOST INSTRUCTOR (Vue d'ensemble sur le toit).";
+    switch (_nextMode) do {
+        case 1: {
+            if (!isNull _lead && {alive _lead}) then {
+                AAI_FPCam = "camera" camCreate (eyePos _lead);
+                AAI_FPCam cameraEffect ["INTERNAL", "BACK"];
+                AAI_FPCam attachTo [_lead, [0, 0.12, 0.08], "head"];
+                [true, _lead] call AAI_fnc_drawTacticalOverlay;
+                systemChat "[CAMERA] Mode: YEUX DE L'OUVREUR / POINTMAN (FPV Lead).";
+            } else {
+                call AAI_fnc_cycleCameraView;
+            };
+        };
+        case 2: {
+            if (!isNull _wing && {alive _wing}) then {
+                AAI_FPCam = "camera" camCreate (eyePos _wing);
+                AAI_FPCam cameraEffect ["INTERNAL", "BACK"];
+                AAI_FPCam attachTo [_wing, [0, 0.12, 0.08], "head"];
+                [true, _wing] call AAI_fnc_drawTacticalOverlay;
+                systemChat "[CAMERA] Mode: YEUX DE L'EQUIPIER / APPUI (FPV Wingman).";
+            } else {
+                call AAI_fnc_cycleCameraView;
+            };
+        };
+        default {
+            (vehicle player) switchCamera "INTERNAL";
+            private _monitored = if (alive _lead) then { _lead } else { _wing };
+            if (!isNull _monitored) then { [true, _monitored] call AAI_fnc_drawTacticalOverlay; };
+            systemChat "[CAMERA] Mode: GHOST INSTRUCTOR (Vue d'ensemble sur le toit).";
+        };
     };
 };
 
@@ -262,8 +355,10 @@ AAI_fnc_toggle3DOverlay = {
     missionNamespace setVariable ["AAI_3DOverlayActive", _isActive];
 
     if (_isActive) then {
-        private _runner = missionNamespace getVariable ["AAI_BluforRunner", objNull];
-        [true, _runner] call AAI_fnc_drawTacticalOverlay;
+        private _lead = missionNamespace getVariable ["AAI_BluforLead", objNull];
+        private _wing = missionNamespace getVariable ["AAI_BluforWingman", objNull];
+        private _monitored = if (!isNull _lead && {alive _lead}) then { _lead } else { _wing };
+        [true, _monitored] call AAI_fnc_drawTacticalOverlay;
         systemChat "[3D OVERLAY] Active.";
     } else {
         [false] call AAI_fnc_drawTacticalOverlay;
@@ -301,73 +396,79 @@ if (hasInterface) then {
 };
 
 // ============================================================================
-// 7. Real-Time Benchmark Telemetry HUD Loop
+// 7. Real-Time Benchmark Telemetry HUD Loop (Binome Telemetry)
 // ============================================================================
 [] spawn {
     while {true} do {
         sleep 0.25;
 
-        private _runner = missionNamespace getVariable ["AAI_BluforRunner", objNull];
-        private _spawnPos = missionNamespace getVariable ["AAI_BluforSpawnPos", [2990, 6002, 0]];
+        private _lead = missionNamespace getVariable ["AAI_BluforLead", objNull];
+        private _wing = missionNamespace getVariable ["AAI_BluforWingman", objNull];
+        private _spawnPos = missionNamespace getVariable ["AAI_BluforLeadSpawnPos", [3048, 5992, 0]];
         private _killedCount = missionNamespace getVariable ["AAI_TargetsKilledCount", 0];
 
-        private _rAlive = (!isNull _runner && {alive _runner});
-        private _hp = if (_rAlive) then { round (_runner getVariable ["AAI_HealthPoints", 100]) } else { 0 };
-        private _distAdvanced = if (_rAlive) then { round (_runner distance2D _spawnPos) } else { 0 };
-        private _targetIndex = if (_rAlive) then { _runner getVariable ["AAI_CurrentTargetIndex", 1] } else { 1 };
+        // Lead Telemetry
+        private _lAlive = (!isNull _lead && {alive _lead});
+        private _hpLead = if (_lAlive) then { round (_lead getVariable ["AAI_HealthPoints", 100]) } else { 0 };
+        private _stateLead = if (_lAlive) then { _lead getVariable ["AAI_TacticalState", "IDLE"] } else { "DEAD" };
+        private _coverLead = if (_lAlive) then { _lead getVariable ["AAI_TargetCover", createHashMap] } else { createHashMap };
+        private _obsDataLead = _coverLead getOrDefault ["obstacleData", createHashMap];
+        private _obsNameLead = if (_obsDataLead isEqualType createHashMap) then { _obsDataLead getOrDefault ["typeName", "Mur"] } else { "Abri" };
+        private _obsHeightLead = if (_obsDataLead isEqualType createHashMap) then { _obsDataLead getOrDefault ["height", 1.0] } else { 1.0 };
+        private _distAdvanced = if (_lAlive) then { round (_lead distance2D _spawnPos) } else { if (!isNull _wing && {alive _wing}) then { round (_wing distance2D _spawnPos) } else { 0 } };
+        private _targetIndex = if (_lAlive) then { _lead getVariable ["AAI_CurrentTargetIndex", 1] } else { if (!isNull _wing && {alive _wing}) then { _wing getVariable ["AAI_CurrentTargetIndex", 1] } else { 1 } };
 
-        private _state = if (_rAlive) then { _runner getVariable ["AAI_TacticalState", "IDLE"] } else { "DEAD" };
-        private _cover = if (_rAlive) then { _runner getVariable ["AAI_TargetCover", createHashMap] } else { createHashMap };
-        private _affordance = if (_rAlive) then { _runner getVariable ["AAI_TargetAffordance", createHashMap] } else { createHashMap };
-        private _affName = _affordance getOrDefault ["stanceName", "STAND"];
-        private _cost = _cover getOrDefault ["costScore", 0];
-        private _obsData = _cover getOrDefault ["obstacleData", createHashMap];
-        private _obsName = if (_obsData isEqualType createHashMap) then { _obsData getOrDefault ["typeName", "Mur / Batiment"] } else { "Abri Naturel" };
-        private _obsHeight = if (_obsData isEqualType createHashMap) then { _obsData getOrDefault ["height", 1.0] } else { 1.0 };
-        private _activeThreat = if (_rAlive) then { _runner getVariable ["AAI_ActiveThreat", objNull] } else { objNull };
+        // Wingman Telemetry
+        private _wAlive = (!isNull _wing && {alive _wing});
+        private _hpWing = if (_wAlive) then { round (_wing getVariable ["AAI_HealthPoints", 100]) } else { 0 };
+        private _stateWing = if (_wAlive) then { _wing getVariable ["AAI_TacticalState", "IDLE"] } else { "DEAD" };
+        private _coverWing = if (_wAlive) then { _wing getVariable ["AAI_TargetCover", createHashMap] } else { createHashMap };
+        private _obsDataWing = _coverWing getOrDefault ["obstacleData", createHashMap];
+        private _obsNameWing = if (_obsDataWing isEqualType createHashMap) then { _obsDataWing getOrDefault ["typeName", "Mur"] } else { "Abri" };
+        private _obsHeightWing = if (_obsDataWing isEqualType createHashMap) then { _obsDataWing getOrDefault ["height", 1.0] } else { 1.0 };
 
-        private _contactStatus = if (_activeThreat isEqualType objNull && {!isNull _activeThreat} && {alive _activeThreat}) then {
-            format ["<t color='#ff3333' font='PuristaBold'>[CONTACT ENGAGE !]</t> Ennemi a %1m", round (_runner distance _activeThreat)]
-        } else {
-            "<t color='#33ccff'>[RECO AVANCEE : PRISE D'ANGLE]</t> ThreatVector"
-        };
-
-        private _stateDesc = switch (_state) do {
-            case "PIEING_CORNER":   { "<t color='#00ffff' font='PuristaBold'>PRISE D'ANGLE (PIEING)</t>" };
-            case "HOLDING_COVER":   { "<t color='#00ff88'>EN DEFILEMENT (CACHE)</t>" };
-            case "PEEK_FIRING":     { "<t color='#ffcc00' font='PuristaBold'>TIR EN DEFILEMENT (PEEK)</t>" };
-            case "IN_DEFILADE":     { "<t color='#00ffaa'>A L'ABRI DU FEU</t>" };
-            case "MOVING_TO_COVER": { "<t color='#ffff33'>BOND TACTIQUE (SPRINT)</t>" };
-            case "DEAD":            { "<t color='#ff2222' font='PuristaBold'>MORT AU COMBAT</t>" };
-            default                 { format ["<t color='#cccccc'>%1</t>", _state] };
-        };
+        private _hColorLead = if (_hpLead > 60) then { "#33ff33" } else { if (_hpLead > 25) then { "#ff9900" } else { "#ff2222" } };
+        private _hColorWing = if (_hpWing > 60) then { "#33ff33" } else { if (_hpWing > 25) then { "#ff9900" } else { "#ff2222" } };
 
         private _camMode = missionNamespace getVariable ["AAI_CameraModeIndex", 0];
-        private _camName = if (_camMode == 1) then { "Yeux IA (FPV)" } else { "Ghost Instructor (Toit)" };
-        private _hColor = if (_hp > 60) then { "#33ff33" } else { if (_hp > 25) then { "#ff9900" } else { "#ff2222" } };
+        private _camName = switch (_camMode) do {
+            case 1: { "Pointman (FPV Lead)" };
+            case 2: { "Wingman (FPV Appui)" };
+            default { "Ghost Instructor (Toit)" };
+        };
 
-        private _targetStr = if (_killedCount >= 7) then {
-            "<t color='#00ff88' font='PuristaBold'>TOUTES LES CIBLES ELIMINEES (7/7)</t>"
+        private _targetStr = if (_killedCount >= 5) then {
+            "<t color='#00ff88' font='PuristaBold'>TOUTES LES CIBLES ELIMINEES (5/5)</t>"
         } else {
-            format ["Cible %1 / 7", _targetIndex]
+            format ["Cible %1 / 5", _targetIndex]
+        };
+
+        private _radioLog = missionNamespace getVariable ["AAI_RadioLog", []];
+        private _radioDisplayStr = if (count _radioLog > 0) then {
+            _radioLog joinString "<br/>"
+        } else {
+            "<t color='#888888'>En attente d'ordres intercom...</t>"
         };
 
         hintSilent parseText format [
-            "<t color='#33ccff' size='1.2' font='PuristaBold'>[BENCHMARK AGIA MARINA : TICO SEMANTIQUE]</t><br/>" +
-            "<t color='#aaaaaa' size='0.85'>Vue :</t> <t color='#ffff00'>%4</t><br/><br/>" +
-            "<t color='#ffffff' size='0.95'>Moteur IA :</t> <t color='#00ff88'>TICO Grounding &amp; Affordance</t><br/>" +
-            "<t color='#ffffff' size='0.95'>Environnement :</t> <t color='#00ccff'>Agia Marina (100%% Natif)</t><br/>" +
-            "<t color='#ffffff' size='0.95'>Objets ajoutes :</t> <t color='#33ff33'>0 (Natif)</t><br/><br/>" +
-            "Sante Soldat : <t color='%1'>%2 HP / 100 HP</t><br/>" +
-            "Progression : <t color='#ffffff'>%3 m / 232 m</t><br/>" +
-            "Score Cibles : <t color='#ffff00'>%5 / 7 neutralisees</t><br/>" +
-            "Objectif Actuel : <t color='#ffff00'>%6</t><br/>" +
-            "Perception : %7<br/>" +
-            "Action : %8<br/>" +
-            "Abri Naturel : <t color='#00ff88'>%9 (H: %10m, %11)</t><br/><br/>" +
-            "<t color='#888888' size='0.8'>Raccourcis : <t color='#ffff00'>F1</t> Reset | <t color='#ffff00'>F2</t> Yeux IA | <t color='#ffff00'>F3</t> 3D | <t color='#ffff00'>Y/Z</t> Zeus</t>",
-            _hColor, _hp, _distAdvanced, _camName, _killedCount, _targetStr,
-            _contactStatus, _stateDesc, _obsName, (_obsHeight toFixed 1), _affName
+            "<t color='#33ccff' size='1.2' font='PuristaBold'>[BENCHMARK AGIA MARINA : TICO BINOME]</t><br/>" +
+            "<t color='#aaaaaa' size='0.85'>Vue Active :</t> <t color='#ffff00'>%1</t><br/><br/>" +
+            "<t color='#ffffff' font='PuristaBold'>--- CHEF DE BINOME (POINTMAN) ---</t><br/>" +
+            "Sante : <t color='%2'>%3 HP</t> | Action : <t color='#ffff33'>%4</t><br/>" +
+            "Abri : <t color='#00ff88'>%5 (H: %6m)</t><br/><br/>" +
+            "<t color='#ffffff' font='PuristaBold'>--- EQUIPIER D'APPUI (WINGMAN) ---</t><br/>" +
+            "Sante : <t color='%7'>%8 HP</t> | Action : <t color='#ffff33'>%9</t><br/>" +
+            "Abri : <t color='#00ff88'>%10 (H: %11m)</t><br/><br/>" +
+            "Progression : <t color='#ffffff'>%12 m / 202 m</t><br/>" +
+            "Score Cibles : <t color='#ffff00'>%13 / 5 neutralisees</t><br/>" +
+            "Objectif Actuel : <t color='#ffff00'>%14</t><br/><br/>" +
+            "<t color='#ffffff' font='PuristaBold'>--- INTERCOM RADIO TACTIQUE ---</t><br/>" +
+            "%15<br/><br/>" +
+            "<t color='#888888' size='0.8'>Raccourcis : <t color='#ffff00'>F1</t> Reset | <t color='#ffff00'>F2</t> Cycle Camera | <t color='#ffff00'>F3</t> 3D | <t color='#ffff00'>Y/Z</t> Zeus</t>",
+            _camName,
+            _hColorLead, _hpLead, _stateLead, _obsNameLead, (_obsHeightLead toFixed 1),
+            _hColorWing, _hpWing, _stateWing, _obsNameWing, (_obsHeightWing toFixed 1),
+            _distAdvanced, _killedCount, _targetStr, _radioDisplayStr
         ];
     };
 };
@@ -421,7 +522,7 @@ if (!isNull player) then {
         call AAI_fnc_resetBenchmarkTrial;
     }, nil, 3.0, false, false, "", "true", 50];
 
-    player addAction ["<t color='#00ffcc' size='1.2'>[CAMERA] YEUX DE L'IA (F2)</t>", {
+    player addAction ["<t color='#00ffcc' size='1.2'>[CAMERA] CYCLE CAMERA LEAD / WING / ROOF (F2)</t>", {
         call AAI_fnc_cycleCameraView;
     }, nil, 2.9, false, false, "", "true", 50];
 
@@ -437,4 +538,4 @@ if (!isNull player) then {
 // Launch trial at start
 call AAI_fnc_resetBenchmarkTrial;
 
-diag_log "[AAI Benchmark Agia Marina] TICO Semantic AI Mission Initialized Successfully.";
+diag_log "[AAI Benchmark Agia Marina] TICO Semantic AI Binome Mission Initialized Successfully.";

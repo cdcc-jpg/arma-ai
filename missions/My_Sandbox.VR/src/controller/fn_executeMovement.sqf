@@ -73,40 +73,48 @@ if (behaviour _unit != "AWARE") then {
 if (combatMode _unit != "RED") then {
     _unit setCombatMode "RED";
 };
-if (speedMode _unit != _speedMode) then {
-    _unit setSpeedMode _speedMode;
-};
 
 // 2. Distance-based Movement & Stance Control with Hysteresis
 private _distToTarget = _unit distance2D _targetPos;
 private _lastTarget = _unit getVariable ["AAI_CurrentMoveTarget", [0,0,0]];
 private _lastMoveTime = _unit getVariable ["AAI_LastMoveOrderTime", 0];
 private _targetDelta = _lastTarget distance2D _targetPos;
+private _isArrivedAtTarget = (_distToTarget <= 2.2);
 
-if (_distToTarget > 1.8) then {
+if (!_isArrivedAtTarget) then {
     // -------------------------------------------------------------------------
-    // TRANSIT PHASE (Low-Profile CQB Tactical Ingress)
+    // TRANSIT PHASE: Fast, athletic movement towards cover
     // -------------------------------------------------------------------------
-    // NEVER stand upright like a civilian in an urban combat zone!
-    // Move in low-profile crouched posture ("MIDDLE") with weapon ready!
-    private _tacticalStance = if (_desiredStance == "DOWN") then { "DOWN" } else { "MIDDLE" };
+    // Athletic CQB Posture: Upright stance during transit maximizes sprint speed!
+    private _tacticalStance = if (_desiredStance in ["UP", "AUTO"]) then {
+        "UP"
+    } else {
+        if (_desiredStance == "DOWN") then { "DOWN" } else { "MIDDLE" }
+    };
     if (unitPos _unit != _tacticalStance) then {
         _unit setUnitPos _tacticalStance;
     };
 
-    // Speed modulation: Use requested speed ("LIMITED", "NORMAL", "FULL")
-    private _transitSpeed = if (_speedMode in ["LIMITED", "NORMAL", "FULL"]) then { _speedMode } else { "NORMAL" };
-    if (speedMode _unit != _transitSpeed) then {
-        _unit setSpeedMode _transitSpeed;
-    };
+    // Modulate physical movement speed per-unit via forceSpeed (never setSpeedMode which pollutes group)
+    private _transitSpeed = if (_speedMode in ["LIMITED", "NORMAL", "FULL"]) then { _speedMode } else { "FULL" };
 
-    // Always keep weapon raised and scanning down the corridor towards watchPos!
-    if (!(_watchPos isEqualTo [0,0,0])) then {
-        _unit doWatch _watchPos;
+    switch (_transitSpeed) do {
+        case "FULL": {
+            _unit forceSpeed 15; // Full athletic combat sprint (~24 km/h, bypasses formation throttle)
+            _unit doWatch objNull; // Free look to maximize forward sprint speed without strafing
+        };
+        case "NORMAL": {
+            _unit forceSpeed 4.2; // Athletic combat jog
+            if (!(_watchPos isEqualTo [0,0,0])) then { _unit doWatch _watchPos; };
+        };
+        case "LIMITED": {
+            _unit forceSpeed 1.6; // Controlled tactical walk
+            if (!(_watchPos isEqualTo [0,0,0])) then { _unit doWatch _watchPos; };
+        };
     };
 
     // Issue doMove if target changed significantly, or if idle with minimum cooldown
-    if (_targetDelta > 0.8 || {unitReady _unit && {time - _lastMoveTime > 0.4}} || {time - _lastMoveTime > 2.0 && {speed _unit < 0.2}}) then {
+    if (_targetDelta > 1.8 || {unitReady _unit && {time - _lastMoveTime > 0.4}} || {time - _lastMoveTime > 2.2 && {speed _unit < 0.2}}) then {
         _unit setVariable ["AAI_CurrentMoveTarget", _targetPos];
         _unit setVariable ["AAI_LastMoveOrderTime", time];
         _unit doMove _targetPos;
@@ -126,12 +134,10 @@ if (_distToTarget > 1.8) then {
     if (unitPos _unit != _safeCoverStance) then {
         _unit setUnitPos _safeCoverStance;
     };
-    if (speedMode _unit != "LIMITED") then {
-        _unit setSpeedMode "LIMITED";
-    };
+    _unit forceSpeed 1.4; // Controlled deliberate micro-steps for corner pieing (no group setSpeedMode)
 
-    // Micro-positioning to the corner peek point or defilade anchor (Slicing the pie)
-    if (_targetDelta > 0.4 && {time - _lastMoveTime > 0.5}) then {
+    // Micro-positioning to the corner pie-slice arc point or defilade anchor (Slicing the pie)
+    if (_targetDelta > 0.15 && {time - _lastMoveTime > 0.25}) then {
         _unit setVariable ["AAI_CurrentMoveTarget", _targetPos];
         _unit setVariable ["AAI_LastMoveOrderTime", time];
         _unit doMove _targetPos;

@@ -49,16 +49,16 @@ private _handle = [_agent, _threat, _tickRate] spawn {
     _agent enableAI "TARGET";
     _agent enableAI "AUTOTARGET";
     _agent enableAI "AIMINGERROR";
-    _agent setUnitPos "MIDDLE";
-    _agent setSpeedMode "LIMITED";
+    _agent setUnitPos "UP";
+    _agent setSpeedMode "FULL";
     _agent setBehaviour "AWARE";
     _agent setCombatMode "RED";
 
     diag_log format ["[AAI Grounding Engine] Started tactical agent controller for %1 against threat %2 (Rate: %3s)", _agent, _threat, _tickRate];
 
     while {alive _agent} do {
-        // Execute one tactical grounding & decision cycle
-        [_agent, _threat, 50.0, false] call AAI_fnc_tacticalTick;
+        // Execute one tactical grounding & decision cycle (65m perception radius for bridge/culvert crossings)
+        [_agent, _threat, 65.0, false] call AAI_fnc_tacticalTick;
 
         // Responsive loop pacing for fluid, reactive tactical movement
         sleep (_tickRate max 0.25);

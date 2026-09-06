@@ -263,6 +263,45 @@ AAI_Draw3D_Handler = addMissionEventHandler ["Draw3D", {
             };
         };
 
+        // Draw Pie Slicing Arc & Quadrants ("Faire la tarte")
+        private _cornerSlices = _unit getVariable ["AAI_CurrentCornerSlices", []];
+        private _curSliceIdx = _unit getVariable ["AAI_CurrentSliceIndex", 1];
+
+        if (count _cornerSlices > 0) then {
+            {
+                private _sIdx = _x get "index";
+                private _sPos = _x get "pos";
+                private _sWatch = _x get "watchPos";
+                private _sAngle = _x getOrDefault ["angleDeg", 0];
+                private _isActive = (_sIdx == _curSliceIdx);
+
+                private _color = if (_isActive) then { [0.0, 1.0, 0.4, 0.95] } else { [0.2, 0.7, 1.0, 0.55] };
+                private _iconSize = if (_isActive) then { 0.45 } else { 0.30 };
+
+                drawIcon3D [
+                    "\a3\ui_f\data\map\markers\military\dot_CA.paa",
+                    _color,
+                    [_sPos select 0, _sPos select 1, ((getPosATL _unit) select 2) + 0.3],
+                    _iconSize, _iconSize, 0,
+                    format ["TRANCHE %1/4 (%2 deg)", _sIdx, _sAngle],
+                    1, 0.022, "PuristaMedium", "center", true
+                ];
+
+                // Draw tangent sight line for the active slice
+                if (_isActive && count _sWatch >= 3) then {
+                    drawLine3D [ATLToASL [_sPos select 0, _sPos select 1, ((getPosATL _unit) select 2) + 1.2], [_sWatch] call _toASL, [0.0, 1.0, 0.4, 0.85]];
+                    drawIcon3D [
+                        "\a3\ui_f\data\map\markers\military\circle_CA.paa",
+                        [0.0, 1.0, 0.4, 0.9],
+                        [_sWatch] call _toASL,
+                        0.4, 0.4, 0,
+                        format ["VISEE TANGENTE [%1/4]", _sIdx],
+                        1, 0.024, "PuristaBold", "center", true
+                    ];
+                };
+            } forEach _cornerSlices;
+        };
+
         if (count _flankL >= 3) then {
             drawIcon3D [
                 "\a3\ui_f\data\map\markers\military\join_CA.paa",
