@@ -205,11 +205,11 @@ _backCenter = _backCenter vectorMultiply (1.0 / (count _backCorners));
 // Ensure cover point is in open courtyard/street and never trapped under interior roofs
 private _effStandoff = if (_obsWidth > 5.0) then { 2.2 } else { 1.1 };
 private _coverPoint = _backCenter vectorAdd (_threatDir2D vectorMultiply _effStandoff);
-_coverPoint set [2, (getTerrainHeightASL [_coverPoint select 0, _coverPoint select 1]) max 0];
+_coverPoint set [2, 0];
 
 if (lineIntersects [ATLToASL (_coverPoint vectorAdd [0,0,0.5]), ATLToASL (_coverPoint vectorAdd [0,0,8])]) then {
     _coverPoint = _coverPoint vectorAdd (_threatDir2D vectorMultiply 2.5);
-    _coverPoint set [2, (getTerrainHeightASL [_coverPoint select 0, _coverPoint select 1]) max 0];
+    _coverPoint set [2, 0];
 };
 
 // Flank / Peek Points (Left & Right offsets around corners for shooting/peeking)
@@ -217,10 +217,10 @@ private _peekLateralOffset = 0.55;
 private _peekBackOffset = 0.35;
 
 private _flankLeft = _leftCorner vectorAdd (_threatPerp2D vectorMultiply (-_peekLateralOffset)) vectorAdd (_threatDir2D vectorMultiply _peekBackOffset);
-_flankLeft set [2, (getTerrainHeightASL [_flankLeft select 0, _flankLeft select 1]) max 0];
+_flankLeft set [2, 0];
 
 private _flankRight = _rightCorner vectorAdd (_threatPerp2D vectorMultiply _peekLateralOffset) vectorAdd (_threatDir2D vectorMultiply _peekBackOffset);
-_flankRight set [2, (getTerrainHeightASL [_flankRight select 0, _flankRight select 1]) max 0];
+_flankRight set [2, 0];
 
 // Physical Occlusion Raycast Check for Center Defilade:
 // Test ray from threat eye position to test height at cover point (crouch test height ~1.1m)
@@ -277,8 +277,9 @@ private _qualityScore = (_heightFactor * 0.25) + (_widthFactor * 0.20) + (_penet
 
 // Sector Watch Position (Aiming down the open street corridor towards threat line)
 private _threatAimDir = (_threatDir2D vectorMultiply -1);
-// Always project watch position 35m down the open street from the peek corner, never stare into a solid wall!
+// Always project watch position 35m down the open street from the peek corner, aimed at chest height (1.4m)
 private _watchPos = _bestPeek vectorAdd (_threatAimDir vectorMultiply 35.0);
+_watchPos set [2, 1.4];
 
 createHashMapFromArray [
     ["obstacle", _obsObj],

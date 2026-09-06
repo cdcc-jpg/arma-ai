@@ -262,7 +262,7 @@ AAI_fnc_resetBootcampTrial = {
     _semanticRunner disableAI "AUTOCOMBAT";
     _semanticRunner disableAI "COVER";
     _semanticRunner disableAI "SUPPRESSION";
-    _semanticRunner disableAI "RADIO";
+    _semanticRunner disableConversation true;
     _semanticRunner setVariable ["AAI_Callsign", "TICO SEMANTIC RUNNER (Couloir 2)"];
     _semanticRunner setVariable ["AAI_TacticalRole", "Rifleman"];
     _semanticRunner setVariable ["AAI_TacticalObjective", getPosATL _sentry2];

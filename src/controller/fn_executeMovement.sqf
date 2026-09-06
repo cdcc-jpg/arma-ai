@@ -51,6 +51,11 @@ if (_watchPos isEqualTo [0,0,0]) then {
     _watchPos = if (!(_threatPos isEqualTo [0,0,0])) then { _threatPos } else { _targetPos };
 };
 
+// Elevate watch position to chest height (1.4m) so the rifle is aimed down the avenue rather than at the dirt
+if (count _watchPos >= 3 && {(_watchPos select 2) < 1.0}) then {
+    _watchPos set [2, ((getPosATL _unit) select 2) + 1.4];
+};
+
 // 1. Ensure all essential combat & movement AI capabilities are properly configured
 if (_unit checkAIFeature "AUTOCOMBAT") then { _unit disableAI "AUTOCOMBAT"; };
 if (_unit checkAIFeature "COVER") then { _unit disableAI "COVER"; };
@@ -78,31 +83,37 @@ private _lastTarget = _unit getVariable ["AAI_CurrentMoveTarget", [0,0,0]];
 private _lastMoveTime = _unit getVariable ["AAI_LastMoveOrderTime", 0];
 private _targetDelta = _lastTarget distance2D _targetPos;
 
-if (_distToTarget > 2.0) then {
+if (_distToTarget > 1.8) then {
     // -------------------------------------------------------------------------
-    // TRANSIT PHASE (Fast, fluid sprint between tactical covers)
+    // TRANSIT PHASE (Low-Profile CQB Tactical Ingress)
     // -------------------------------------------------------------------------
-    // Stand upright for maximum forward running velocity without crouching hesitation
-    if (unitPos _unit != "UP") then {
-        _unit setUnitPos "UP";
-    };
-    if (speedMode _unit != "FULL") then {
-        _unit setSpeedMode "FULL";
+    // NEVER stand upright like a civilian in an urban combat zone!
+    // Move in low-profile crouched posture ("MIDDLE") with weapon ready!
+    private _tacticalStance = if (_desiredStance == "DOWN") then { "DOWN" } else { "MIDDLE" };
+    if (unitPos _unit != _tacticalStance) then {
+        _unit setUnitPos _tacticalStance;
     };
 
-    // During transit: clear watch to allow unobstructed, full-speed forward locomotion
-    _unit doTarget objNull;
-    _unit doWatch objNull;
+    // Speed modulation: Use requested speed ("LIMITED", "NORMAL", "FULL")
+    private _transitSpeed = if (_speedMode in ["LIMITED", "NORMAL", "FULL"]) then { _speedMode } else { "NORMAL" };
+    if (speedMode _unit != _transitSpeed) then {
+        _unit setSpeedMode _transitSpeed;
+    };
+
+    // Always keep weapon raised and scanning down the corridor towards watchPos!
+    if (!(_watchPos isEqualTo [0,0,0])) then {
+        _unit doWatch _watchPos;
+    };
 
     // Issue doMove if target changed significantly, or if idle with minimum cooldown
-    if (_targetDelta > 1.2 || {unitReady _unit && {time - _lastMoveTime > 0.4}} || {time - _lastMoveTime > 2.5 && {speed _unit < 0.3}}) then {
+    if (_targetDelta > 0.8 || {unitReady _unit && {time - _lastMoveTime > 0.4}} || {time - _lastMoveTime > 2.0 && {speed _unit < 0.2}}) then {
         _unit setVariable ["AAI_CurrentMoveTarget", _targetPos];
         _unit setVariable ["AAI_LastMoveOrderTime", time];
         _unit doMove _targetPos;
     };
 
     // Reveal threat to agent if active
-    if (!isNull _threat && {_threat isEqualType objNull} && {alive _threat}) then {
+    if (_threat isEqualType objNull && {!isNull _threat} && {alive _threat}) then {
         _unit reveal [_threat, 4];
     };
 
@@ -115,9 +126,12 @@ if (_distToTarget > 2.0) then {
     if (unitPos _unit != _safeCoverStance) then {
         _unit setUnitPos _safeCoverStance;
     };
+    if (speedMode _unit != "LIMITED") then {
+        _unit setSpeedMode "LIMITED";
+    };
 
     // Micro-positioning to the corner peek point or defilade anchor (Slicing the pie)
-    if (_targetDelta > 0.5 && {time - _lastMoveTime > 0.6}) then {
+    if (_targetDelta > 0.4 && {time - _lastMoveTime > 0.5}) then {
         _unit setVariable ["AAI_CurrentMoveTarget", _targetPos];
         _unit setVariable ["AAI_LastMoveOrderTime", time];
         _unit doMove _targetPos;
@@ -125,7 +139,7 @@ if (_distToTarget > 2.0) then {
 
     // Active Sector Surveillance & Weapon Engagement from behind cover
     private _canSeeThreat = false;
-    if (!isNull _threat && {_threat isEqualType objNull} && {alive _threat}) then {
+    if (_threat isEqualType objNull && {!isNull _threat} && {alive _threat}) then {
         _unit reveal [_threat, 4];
         private _vis = [objNull, "VIEW", _unit] checkVisibility [eyePos _unit, eyePos _threat];
         _canSeeThreat = (_vis > 0.15);
@@ -137,25 +151,18 @@ if (_distToTarget > 2.0) then {
 
             // Rapid, lethal engagement bursts
             private _lastFire = _unit getVariable ["AAI_LastFireBurstTime", 0];
-            if (time - _lastFire > 0.85) then {
+            if (time - _lastFire > 0.65) then {
                 _unit setVariable ["AAI_LastFireBurstTime", time];
-                _unit doSuppressiveFire _threat;
-                _unit doFire _threat;
+                _unit forceWeaponFire [currentMuzzle _unit, "Single"];
+                _unit forceWeaponFire [currentMuzzle _unit, "Single"];
             };
         } else {
             // OCCLUDED THREAT: Clear target so engine does not stare into solid concrete!
             _unit doTarget objNull;
 
-            // Naturally orient and watch towards the threat avenue / corner without hard setDir snaps
+            // Naturally orient and watch towards the threat avenue / corner
             if (count _watchPos >= 2) then {
                 _unit doWatch _watchPos;
-            };
-
-            // Periodic suppression burst down the corridor corner if close
-            private _lastFire = _unit getVariable ["AAI_LastFireBurstTime", 0];
-            if (time - _lastFire > 1.4 && {_unit distance _threat < 120}) then {
-                _unit setVariable ["AAI_LastFireBurstTime", time];
-                _unit doSuppressiveFire _threat;
             };
         };
     } else {

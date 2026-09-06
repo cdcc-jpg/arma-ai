@@ -74,7 +74,7 @@ AAI_Draw3D_Handler = addMissionEventHandler ["Draw3D", {
     // 1. Threat Visualization (Red Sightline & Threat Header)
     // -------------------------------------------------------------------------
     private _threatPosASL = [0,0,0];
-    if (!isNull _threat && {_threat isEqualType objNull} && {alive _threat}) then {
+    if (_threat isEqualType objNull && {!isNull _threat} && {alive _threat}) then {
         _threatPosASL = eyePos _threat;
         private _threatHeadPos = getPosATL _threat;
         _threatHeadPos set [2, (_threatHeadPos select 2) + 2.1];

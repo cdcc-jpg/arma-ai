@@ -45,6 +45,14 @@ private _handle = [_agent, _threat, _tickRate] spawn {
     _agent disableAI "SUPPRESSION";
     _agent enableAI "MOVE";
     _agent enableAI "PATH";
+    _agent enableAI "ANIM";
+    _agent enableAI "TARGET";
+    _agent enableAI "AUTOTARGET";
+    _agent enableAI "AIMINGERROR";
+    _agent setUnitPos "MIDDLE";
+    _agent setSpeedMode "LIMITED";
+    _agent setBehaviour "AWARE";
+    _agent setCombatMode "RED";
 
     diag_log format ["[AAI Grounding Engine] Started tactical agent controller for %1 against threat %2 (Rate: %3s)", _agent, _threat, _tickRate];
 
