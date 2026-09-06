@@ -1,9 +1,14 @@
 $source = "$PSScriptRoot/../src/controller/*"
 $primaryTargets = @(
     "$PSScriptRoot/../missions/Agia_Marina_Semantic.Stratis/src/controller_live/",
-    "$PSScriptRoot/../missions/Agia_Marina_Vanilla.Stratis/src/controller/"
+    "$PSScriptRoot/../missions/Agia_Marina_Vanilla.Stratis/src/controller/",
+    "$PSScriptRoot/../missions/Georgetown_Semantic.Tanoa/src/controller_live/",
+    "$PSScriptRoot/../missions/Georgetown_Vanilla.Tanoa/src/controller/"
 )
-$lockedTarget = "$PSScriptRoot/../missions/Agia_Marina_Semantic.Stratis/src/controller/"
+$lockedTargets = @(
+    "$PSScriptRoot/../missions/Agia_Marina_Semantic.Stratis/src/controller/",
+    "$PSScriptRoot/../missions/Georgetown_Semantic.Tanoa/src/controller/"
+)
 
 Write-Output "DAEMON_STARTED"
 while ($true) {
@@ -15,9 +20,11 @@ while ($true) {
             $primaryOk = $false
         }
     }
-    try {
-        Copy-Item -Path $source -Destination $lockedTarget -Force -ErrorAction SilentlyContinue
-    } catch {}
+    foreach ($target in $lockedTargets) {
+        try {
+            Copy-Item -Path $source -Destination $target -Force -ErrorAction SilentlyContinue
+        } catch {}
+    }
 
     if ($primaryOk) {
         Write-Output "DAEMON_SYNC_COMPLETE"

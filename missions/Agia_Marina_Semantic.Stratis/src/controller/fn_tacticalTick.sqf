@@ -753,13 +753,13 @@ private _role = _unit getVariable ["AAI_TacticalRole", "Rifleman"];
             };
         };
     } else {
-        // POINTMAN (Lead): In leapfrog bounds across gaps (bridges/riverbeds), Pointman is the lead scout!
-        private _buddyUnit = _unit getVariable ["AAI_BuddyUnit", objNull];
-        if (_unit == _leadUnit && {!isNull _buddyUnit} && {alive _buddyUnit}) then {
-            private _distToWing = _cPoint distance2D (getPosATL _buddyUnit);
+        // POINTMAN (Lead): In leapfrog bounds across gaps (bridges/streets), Pointman is the lead scout!
+        private _buddies = (units group _unit) select { _x != _unit && {alive _x} };
+        if (_unit == _leadUnit && {count _buddies > 0}) then {
+            private _minDistToBuddy = selectMin (_buddies apply { _cPoint distance2D (getPosATL _x) });
             // Allow bounds up to 20m across open danger areas without cohesion penalty for the scout
-            if (_distToWing > 20.0) then {
-                _cohesionPenalty = _cohesionPenalty + (((_distToWing - 20.0) * 3.0) min 25.0);
+            if (_minDistToBuddy > 20.0) then {
+                _cohesionPenalty = _cohesionPenalty + (((_minDistToBuddy - 20.0) * 3.0) min 25.0);
             };
         };
     };
@@ -882,14 +882,17 @@ if (!isNull _buddy && {alive _buddy}) then {
         // POINTMAN (LEAD):
         private _waitingForWing = _unit getVariable ["AAI_LeadWaitingForWingman", false];
         if (_waitingForWing) then {
-            private _wingArrived = (_buddyCovering && {_distToBuddy <= 14.0});
+            private _livingBuddies = (units group _unit) select { _x != _unit && {alive _x} };
+            private _wingArrived = (count _livingBuddies == 0) || {
+                ({ (_x getVariable ["AAI_IsProvidingCover", false]) && {(_unit distance2D _x) <= 15.0} } count _livingBuddies) > 0
+            };
             private _waitStartTime = _unit getVariable ["AAI_LeadWaitStartTime", time];
             if (_wingArrived || {time - _waitStartTime > 4.5}) then {
                 _unit setVariable ["AAI_LeadWaitingForWingman", false];
                 _unit setVariable ["AAI_IsProvidingCover", false];
                 [_unit, "Je progresse vers l'angle suivant ! Couvre l'axe !", "ORDER"] call AAI_fnc_tacticalRadio;
             } else {
-                // Lead stays anchored in overwatch covering the street while Wingman bounds!
+                // Lead stays anchored in overwatch covering the street while Wingmen bound!
                 _unit setVariable ["AAI_IsProvidingCover", true];
                 _chosenPoint = _currentCoverPoint;
             };

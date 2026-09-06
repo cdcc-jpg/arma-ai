@@ -37,8 +37,30 @@ if (_type != "CONTACT" && {time - _lastAnyRadio < 1.8}) exitWith {};
 _unit setVariable ["AAI_LastAnyRadioTime", time];
 
 private _isLead = (_unit == leader (group _unit));
-private _roleTitle = if (_isLead) then { "POINTMAN (LEAD)" } else { "WINGMAN (APPUI)" };
-private _tagColor  = if (_isLead) then { "#ffcc00" } else { "#33ddff" };
+private _tacRole = _unit getVariable ["AAI_TacticalRole", if (_isLead) then { "Rifleman" } else { "Autorifleman" }];
+private _customCallsign = _unit getVariable ["AAI_Callsign", ""];
+
+private _roleTitle = switch (_tacRole) do {
+    case "Autorifleman": { "APPUI (AR)" };
+    case "Marksman":     { "PRECISION (MARKS)" };
+    case "Breacher":     { "BREACHER" };
+    default {
+        if (_isLead) then { "POINTMAN (LEAD)" } else { "VOLTIGEUR (RIFLE)" }
+    };
+};
+if (_customCallsign != "") then {
+    if (_customCallsign find "POINTMAN" != -1) then { _roleTitle = "POINTMAN (LEAD)"; };
+    if (_customCallsign find "WINGMAN" != -1 || {_customCallsign find "APPUI" != -1}) then { _roleTitle = "APPUI (AR)"; };
+    if (_customCallsign find "MARKSMAN" != -1 || {_customCallsign find "PRECISION" != -1}) then { _roleTitle = "PRECISION (MARKS)"; };
+};
+
+private _tagColor = switch (_tacRole) do {
+    case "Autorifleman": { "#33ddff" };
+    case "Marksman":     { "#00ff88" };
+    default {
+        if (_isLead) then { "#ffcc00" } else { "#ffaa44" }
+    };
+};
 
 private _typePrefix = switch (_type) do {
     case "DANGER":  { "<t color='#ff9900'>[ALERTE ANGLE]</t>" };

@@ -1,0 +1,58 @@
+﻿/*
+    Author: Clement D. / Arma-AI Team
+    Mission: Georgetown: TICO Semantic AI Benchmark (Tanoa)
+    File: description.ext
+*/
+
+author = "Arma-AI Systems Engineering Team";
+onLoadName = "Georgetown: TICO Semantic AI";
+onLoadMission = "1-to-1 Urban Benchmark in natural Georgetown (3 BLUFOR vs 8 OPFOR). BLUFOR uses TICO Spatial Affordance AI.";
+briefingName = "Georgetown - TICO Semantic AI Benchmark (Tanoa)";
+overviewText = "1-to-1 Urban Benchmark in natural Georgetown (3 BLUFOR vs 8 OPFOR). BLUFOR uses TICO Spatial Affordance AI.";
+
+// Mission Settings
+enableDebugConsole = 2;
+saving = 0;
+respawn = 3;
+respawnDelay = 3;
+respawnDialog = 0;
+respawnOnStart = -1;
+
+class Header {
+    gameType = Sandbox;
+    minPlayers = 1;
+    maxPlayers = 4;
+};
+
+// =============================================================================
+// CfgFunctions Registration
+// =============================================================================
+class CfgFunctions {
+    recompile = 1;
+    class AAI {
+        tag = "AAI";
+        compileFinal = 0;
+
+        class Grounding {
+            file = "src\grounding";
+            class perceiveObstacles {};
+            class computeCoverShadow {};
+            class evaluateStanceAffordance {};
+            class computeCornerSlices {};
+        };
+
+        class Controller {
+            file = "src\controller";
+            class tacticalTick {};
+            class executeMovement {};
+            class startAgentController {};
+            class updateKnowledgeGraph {};
+            class tacticalRadio {};
+        };
+
+        class Debug {
+            file = "src\debug";
+            class drawTacticalOverlay {};
+        };
+    };
+};
