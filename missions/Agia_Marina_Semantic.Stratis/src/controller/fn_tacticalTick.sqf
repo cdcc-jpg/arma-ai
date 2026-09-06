@@ -40,14 +40,18 @@ if (!alive _unit) exitWith {
     createHashMapFromArray [["state", "DEAD"], ["isExposed", false]]
 };
 
-// 1. Resolve Active Threat
+// 1. Resolve Active Threat (Legitimate Perception - No Omniscience)
 private _activeThreat = objNull;
 private _threatPos = [0,0,0];
+private _isAnticipatedThreat = false;
 
 if (_threat isEqualType objNull) then {
     if (!isNull _threat && {alive _threat}) then {
-        _activeThreat = _threat;
-        _threatPos = eyePos _threat;
+        // Only accept threat if unit legitimately knows about it or has clear line of sight
+        if (_unit knowsAbout _threat > 0.5 || {([_unit, "VIEW", _threat] checkVisibility [eyePos _unit, eyePos _threat]) > 0.2}) then {
+            _activeThreat = _threat;
+            _threatPos = eyePos _threat;
+        };
     };
 } else {
     if (count _threat >= 2) then {
@@ -55,32 +59,47 @@ if (_threat isEqualType objNull) then {
     };
 };
 
-// If no explicit threat passed, search for nearest known enemy
+// Check sensory perception (sight / sound)
 if (isNull _activeThreat && {_threatPos isEqualTo [0,0,0]}) then {
     private _nearestEnemy = _unit findNearestEnemy _unit;
-    if (!isNull _nearestEnemy && {alive _nearestEnemy}) then {
+    if (!isNull _nearestEnemy && {alive _nearestEnemy} && {_unit knowsAbout _nearestEnemy > 0.5}) then {
         _activeThreat = _nearestEnemy;
         _threatPos = eyePos _nearestEnemy;
     } else {
-        // Fallback: search for any living hostile unit in 300m
-        private _hostiles = (allUnits select {side _x != side _unit && {side _x != civilian} && {alive _x} && {(_unit distance _x) < 300}});
+        // Direct visual raycast sweep: check if any hostile within 120m is in direct line of sight
+        private _hostiles = (allUnits select {
+            side _x != side _unit && 
+            {side _x != civilian} && 
+            {alive _x} && 
+            {(_unit distance _x) < 120} &&
+            {([_unit, "VIEW", _x] checkVisibility [eyePos _unit, eyePos _x]) > 0.25}
+        });
         if (count _hostiles > 0) then {
-            // Sort by distance
             _hostiles = [_hostiles, [], { _unit distance _x }, "ASCEND"] call BIS_fnc_sortBy;
             _activeThreat = _hostiles select 0;
             _threatPos = eyePos _activeThreat;
+            _unit reveal [_activeThreat, 4];
+            systemChat format ["[TICO ONTOLOGIE] CONTACT VISUEL ! Ennemi repere a %1m !", round (_unit distance _activeThreat)];
         };
     };
 };
 
-if (isNull _activeThreat && {_threatPos isEqualTo [0,0,0]}) exitWith {
-    _unit setVariable ["AAI_TacticalState", "THREAT_LOST"];
-    createHashMapFromArray [
-        ["state", "THREAT_LOST"],
-        ["chosenCover", createHashMap],
-        ["allCoverCandidates", []],
-        ["isExposed", false]
-    ]
+// If NO enemy is currently perceived: Construct an ANTICIPATED THREAT VECTOR (tac:ThreatVector)
+if (isNull _activeThreat && {_threatPos isEqualTo [0,0,0]}) then {
+    _isAnticipatedThreat = true;
+    private _objectivePos = _unit getVariable ["AAI_TacticalObjective", []];
+    private _unitPosATL = getPosATL _unit;
+    private _advanceDir = if (count _objectivePos >= 2) then {
+        private _diff = [(_objectivePos select 0) - (_unitPosATL select 0), (_objectivePos select 1) - (_unitPosATL select 1), 0];
+        if (vectorMagnitude _diff > 0.1) then { vectorNormalized _diff } else { [sin (getDir _unit), cos (getDir _unit), 0] };
+    } else {
+        [sin (getDir _unit), cos (getDir _unit), 0]
+    };
+
+    // Anticipate potential hostile fire 45m ahead along the street/advance avenue
+    private _anticipatedATL = _unitPosATL vectorAdd (_advanceDir vectorMultiply 45.0);
+    _anticipatedATL set [2, (_unitPosATL select 2) + 1.5];
+    _threatPos = ATLToASL _anticipatedATL;
 };
 
 // 2. Assess Current Exposure to Threat
@@ -144,19 +163,23 @@ if (_isInCover) then {
 private _dwellTime = if (_isInCover) then { time - (_unit getVariable ["AAI_CoverArrivalTime", time]) } else { 0 };
 
 // -------------------------------------------------------------------------
-// TACTICAL DWELL: In cover delivering fire from defilade/peek for ~1.2s
+// TACTICAL DWELL: Corner Pieing & Sector Clearance / Defensive Defilade
 // -------------------------------------------------------------------------
-private _targetDwell = if ((_unit getVariable ["AAI_TacticalRole", "Rifleman"]) == "Marksman") then { 6.0 } else { 1.2 };
+private _targetDwell = if ((_unit getVariable ["AAI_TacticalRole", "Rifleman"]) == "Marksman") then { 
+    6.0 
+} else { 
+    if (_isAnticipatedThreat) then { 2.4 } else { 1.4 } 
+};
 if (!_forceRecalc && {_isInCover} && {_dwellTime < _targetDwell}) exitWith {
-    _unit setVariable ["AAI_TacticalState", "IN_COVER"];
-    
-    // Peek-defilade corner slicing
+    // Peek-defilade corner slicing ("Slicing the pie")
     private _bestPeekPoint = _currentCoverData getOrDefault ["bestPeekPoint", []];
+    private _watchPos = _currentCoverData getOrDefault ["watchPos", _threatPos];
     private _chosenPoint = _currentCoverPoint;
-    
-    if (count _bestPeekPoint >= 3 && {!isNull _activeThreat}) then {
+    private _isPeeking = false;
+
+    if (count _bestPeekPoint >= 3) then {
         private _peekCycleTime = _unit getVariable ["AAI_PeekCycleTime", 0];
-        private _isPeeking = _unit getVariable ["AAI_IsPeeking", false];
+        _isPeeking = _unit getVariable ["AAI_IsPeeking", false];
         if (time - _peekCycleTime > 0.8) then {
             _isPeeking = !_isPeeking;
             _unit setVariable ["AAI_IsPeeking", _isPeeking];
@@ -165,17 +188,49 @@ if (!_forceRecalc && {_isInCover} && {_dwellTime < _targetDwell}) exitWith {
         _chosenPoint = if (_isPeeking) then { _bestPeekPoint } else { _currentCoverPoint };
     };
 
+    // Active visual sweep during corner pie slice to discover hidden hostiles organically
+    if (_isPeeking) then {
+        private _eyePosASL = eyePos _unit;
+        private _spottedEnemy = objNull;
+        {
+            if (side _x != side _unit && {side _x != civilian} && {alive _x} && {(_unit distance _x) < 130}) then {
+                private _targetEye = eyePos _x;
+                private _vis = [_unit, "VIEW", _x] checkVisibility [_eyePosASL, _targetEye];
+                if (_vis > 0.15) exitWith {
+                    _spottedEnemy = _x;
+                };
+            };
+        } forEach allUnits;
+
+        if (!isNull _spottedEnemy) then {
+            _unit reveal [_spottedEnemy, 4];
+            _activeThreat = _spottedEnemy;
+            _threatPos = eyePos _spottedEnemy;
+            _unit setVariable ["AAI_ActiveThreat", _spottedEnemy];
+            _unit setVariable ["AAI_CoverArrivalTime", 0]; // Reset dwell to engage immediately
+            systemChat format ["[TICO ONTOLOGIE] CONTACT VISUEL ! Ennemi decouvert au coin (%1m) !", round (_unit distance _spottedEnemy)];
+        };
+    };
+
+    // Dynamic tactical sub-state for telemetry HUD and 3D visualizer
+    private _subState = if (_isAnticipatedThreat) then {
+        if (_isPeeking) then { "PIEING_CORNER" } else { "HOLDING_COVER" }
+    } else {
+        if (_isPeeking) then { "PEEK_FIRING" } else { "IN_DEFILADE" }
+    };
+    _unit setVariable ["AAI_TacticalState", _subState];
+
     [
         _unit,
         _chosenPoint,
         "MIDDLE",
         if (!isNull _activeThreat) then { _activeThreat } else { _threatPos },
         "NORMAL",
-        _currentCoverData getOrDefault ["watchPos", _threatPos]
+        _watchPos
     ] call AAI_fnc_executeMovement;
 
     createHashMapFromArray [
-        ["state", "IN_COVER"],
+        ["state", _subState],
         ["chosenCover", _currentCoverData],
         ["allCoverCandidates", _unit getVariable ["AAI_CoverShadows", []]],
         ["affordance", _unit getVariable ["AAI_TargetAffordance", createHashMap]],
@@ -443,11 +498,11 @@ private _chosenPoint = _coverPoint;
 private _chosenStance = "MIDDLE";
 
 // Peek-Defilade Cycle: ONLY activates once the unit has safely arrived at cover!
-if (_isAtCover && {count _bestPeekPoint >= 3} && {!isNull _activeThreat}) then {
+if (_isAtCover && {count _bestPeekPoint >= 3}) then {
     private _peekCycleTime = _unit getVariable ["AAI_PeekCycleTime", 0];
     private _isPeeking = _unit getVariable ["AAI_IsPeeking", false];
 
-    if (time - _peekCycleTime > (if (_isPeeking) then { 1.5 } else { 2.2 })) then {
+    if (time - _peekCycleTime > (if (_isPeeking) then { 1.2 } else { 1.5 })) then {
         _isPeeking = !_isPeeking;
         _unit setVariable ["AAI_IsPeeking", _isPeeking];
         _unit setVariable ["AAI_PeekCycleTime", time];
@@ -508,7 +563,11 @@ _unit setVariable ["AAI_TargetWatchPos", _watchPos];
 
 private _newState = if (_distToGoal <= 1.8) then {
     _unit setVariable ["AAI_CoverDwellTime", _dwellTime + 1.0];
-    "IN_COVER"
+    if (_isAnticipatedThreat) then {
+        if (_unit getVariable ["AAI_IsPeeking", false]) then { "PIEING_CORNER" } else { "HOLDING_COVER" }
+    } else {
+        if (_unit getVariable ["AAI_IsPeeking", false]) then { "PEEK_FIRING" } else { "IN_DEFILADE" }
+    }
 } else {
     _unit setVariable ["AAI_CoverDwellTime", 0.0];
     "MOVING_TO_COVER"

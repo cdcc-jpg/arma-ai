@@ -109,7 +109,7 @@ AAI_fnc_resetBenchmarkTrial = {
     _runner disableAI "RADIO";
     _runner setVariable ["AAI_Callsign", "TICO SEMANTIC RUNNER"];
     _runner setVariable ["AAI_TacticalRole", "Rifleman"];
-    _runner setVariable ["AAI_TacticalObjective", getPosATL _sentry1];
+    _runner setVariable ["AAI_TacticalObjective", _sentry1Pos];
 
     // Normalized damage handler (scaled so unit survives to demonstrate tactics)
     _runner addEventHandler ["HandleDamage", {
@@ -126,48 +126,37 @@ AAI_fnc_resetBenchmarkTrial = {
     missionNamespace setVariable ["AAI_Commander", _commander];
     missionNamespace setVariable ["AAI_TrialStartTime", time];
 
-    // Reveal targets mutually
-    _runner reveal [_sentry1, 4];
-    _sentry1 reveal [_runner, 4];
-
     // =========================================================================
-    // TICO SEMANTIC AGENT CONTROLLER & MULTI-STAGE PROGRESSION
+    // TICO SEMANTIC AGENT CONTROLLER (Zero Omniscience - Organic Reconnaissance)
     // =========================================================================
-    // Launch autonomous spatial grounding loop directly from frame 0
-    [_runner, _sentry1, 0.30] spawn AAI_fnc_startAgentController;
+    // Threat is initially objNull: Agent relies on TICO anticipated threat vector (tac:ThreatVector)
+    // and organic line-of-sight sweep while slicing corners (tac:PeekAffordance).
+    [_runner, objNull, 0.30] spawn AAI_fnc_startAgentController;
 
     // Multi-stage urban objective coordinator
-    [_runner, _sentry1, _sentry2, _commander] spawn {
-        params ["_u", "_t1", "_t2", "_t3"];
+    [_runner, _sentry1Pos, _sentry2Pos, _commanderPos, _sentry1, _sentry2, _commander] spawn {
+        params ["_u", "_p1", "_p2", "_p3", "_t1", "_t2", "_t3"];
 
-        systemChat "[AGIA MARINA - SEMANTIQUE] Epreuve lancee ! Affordance sémantique active vers Sentry 1 (Place du Marche)...";
+        systemChat "[AGIA MARINA - SEMANTIQUE] Epreuve lancee ! Progression avec anticipation ontologique (tac:ThreatVector) vers le Marche...";
 
-        // Stage 1: Advance towards Sentry 1
+        // Stage 1: Advance towards Market Square
         waitUntil {!alive _t1 || {!alive _u}};
         if (alive _u && {!alive _t1}) then {
-            systemChat "[AGIA MARINA - SEMANTIQUE] Sentry 1 neutralisee ! Transition vers Sentry 2 (Carrefour Central)...";
-            _u setVariable ["AAI_TacticalObjective", getPosATL _t2];
-            _u reveal [_t2, 4];
-            _t2 reveal [_u, 4];
+            systemChat "[AGIA MARINA - SEMANTIQUE] Sentry 1 neutralisee ! Prise d'angle et progression vers le Carrefour Central...";
+            _u setVariable ["AAI_TacticalObjective", _p2];
+            _u setVariable ["AAI_CoverArrivalTime", 0];
 
-            // Relaunch controller targeting Sentry 2
-            [_u, _t2, 0.30] spawn AAI_fnc_startAgentController;
-
-            // Stage 2: Advance towards Sentry 2
+            // Stage 2: Advance towards Central Crossroads
             waitUntil {!alive _t2 || {!alive _u}};
             if (alive _u && {!alive _t2}) then {
-                systemChat "[AGIA MARINA - SEMANTIQUE] Sentry 2 neutralisee ! Assaut final vers le Commandant (Sortie Nord)...";
-                _u setVariable ["AAI_TacticalObjective", getPosATL _t3];
-                _u reveal [_t3, 4];
-                _t3 reveal [_u, 4];
-
-                // Relaunch controller targeting Commander
-                [_u, _t3, 0.30] spawn AAI_fnc_startAgentController;
+                systemChat "[AGIA MARINA - SEMANTIQUE] Sentry 2 neutralisee ! Progression en defilement vers la Sortie Nord...";
+                _u setVariable ["AAI_TacticalObjective", _p3];
+                _u setVariable ["AAI_CoverArrivalTime", 0];
 
                 // Stage 3: Advance towards Commander
                 waitUntil {!alive _t3 || {!alive _u}};
                 if (!alive _t3) then {
-                    systemChat "[AGIA MARINA - SEMANTIQUE] VICTOIRE ! Redoute du commandant neutralisee avec exploitation 100% naturelle du village !";
+                    systemChat "[AGIA MARINA - SEMANTIQUE] VICTOIRE ! Tous les defenseurs d'Agia Marina ont ete neutralises via la couche semantique TICO !";
                 };
             };
         };
@@ -279,9 +268,29 @@ if (hasInterface) then {
         private _targetStr = if (_s1Alive) then { "Sentry 1 (Marche ~35m)" } else { if (_s2Alive) then { "Sentry 2 (Carrefour ~70m)" } else { if (_cAlive) then { "Commandant (Sortie ~110m)" } else { "<t color='#00ff88'>COMPLETE !</t>" } } };
 
         private _state = if (_rAlive) then { _runner getVariable ["AAI_TacticalState", "IDLE"] } else { "DEAD" };
+        private _cover = if (_rAlive) then { _runner getVariable ["AAI_TargetCover", createHashMap] } else { createHashMap };
         private _affordance = if (_rAlive) then { _runner getVariable ["AAI_TargetAffordance", createHashMap] } else { createHashMap };
-        private _affName = _affordance getOrDefault ["stanceName", "N/A"];
-        private _cost = if (_rAlive) then { (_runner getVariable ["AAI_TargetCover", createHashMap]) getOrDefault ["costScore", 0] } else { 0 };
+        private _affName = _affordance getOrDefault ["stanceName", "STAND"];
+        private _cost = _cover getOrDefault ["costScore", 0];
+        private _obsData = _cover getOrDefault ["obstacleData", createHashMap];
+        private _obsName = if (_obsData isEqualType createHashMap) then { _obsData getOrDefault ["typeName", "Mur / Batiment"] } else { "Abri Naturel" };
+        private _obsHeight = if (_obsData isEqualType createHashMap) then { _obsData getOrDefault ["height", 1.0] } else { 1.0 };
+        private _activeThreat = if (_rAlive) then { _runner getVariable ["AAI_ActiveThreat", objNull] } else { objNull };
+
+        private _contactStatus = if (!isNull _activeThreat && {_activeThreat isEqualType objNull} && {alive _activeThreat}) then {
+            format ["<t color='#ff3333' font='PuristaBold'>[CONTACT ENGAGE !]</t> Ennemi a %1m", round (_runner distance _activeThreat)]
+        } else {
+            "<t color='#33ccff'>[RECO AVANCEE : PRISE D'ANGLE]</t> ThreatVector"
+        };
+
+        private _stateDesc = switch (_state) do {
+            case "PIEING_CORNER":   { "<t color='#00ffff' font='PuristaBold'>PRISE D'ANGLE (PIEING)</t>" };
+            case "HOLDING_COVER":   { "<t color='#00ff88'>EN DEFILEMENT (CACHE)</t>" };
+            case "PEEK_FIRING":     { "<t color='#ffcc00' font='PuristaBold'>TIR EN DEFILEMENT (PEEK)</t>" };
+            case "IN_DEFILADE":     { "<t color='#00ffaa'>A L'ABRI DU FEU</t>" };
+            case "MOVING_TO_COVER": { "<t color='#ffff33'>BOND TACTIQUE (SPRINT)</t>" };
+            default                 { format ["<t color='#cccccc'>%1</t>", _state] };
+        };
 
         private _camMode = missionNamespace getVariable ["AAI_CameraModeIndex", 0];
         private _camName = if (_camMode == 1) then { "Yeux IA (FPV)" } else { "Ghost Instructor (Toit)" };
@@ -296,10 +305,12 @@ if (hasInterface) then {
             "Sante Soldat : <t color='%1'>%2%5</t><br/>" +
             "Progression : <t color='#ffffff'>%3 m</t><br/>" +
             "Objectif Actuel : <t color='#ffff00'>%6</t><br/>" +
-            "Etat : <t color='#00ffcc'>%7</t> | Abri : <t color='#00ff88'>%8</t> (J: %9)<br/><br/>" +
+            "Perception : %7<br/>" +
+            "Action : %8<br/>" +
+            "Abri Naturel : <t color='#00ff88'>%9 (H: %10m, %11)</t><br/><br/>" +
             "<t color='#888888' size='0.8'>Raccourcis : <t color='#ffff00'>F1</t> Reset | <t color='#ffff00'>F2</t> Yeux IA | <t color='#ffff00'>F3</t> 3D | <t color='#ffff00'>Y/Z</t> Zeus</t>",
-            _hColor, _health, _distAdvanced, _camName, "%", _targetStr, _state, _affName,
-            (if (_cost isEqualType 0 && {finite _cost}) then { _cost toFixed 1 } else { "N/A" })
+            _hColor, _health, _distAdvanced, _camName, "%", _targetStr,
+            _contactStatus, _stateDesc, _obsName, (_obsHeight toFixed 1), _affName
         ];
     };
 };

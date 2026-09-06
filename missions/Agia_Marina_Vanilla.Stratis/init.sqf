@@ -122,47 +122,39 @@ AAI_fnc_resetBenchmarkTrial = {
     missionNamespace setVariable ["AAI_Commander", _commander];
     missionNamespace setVariable ["AAI_TrialStartTime", time];
 
-    // Reveal targets mutually
-    _runner reveal [_sentry1, 4];
-    _sentry1 reveal [_runner, 4];
-
     // =========================================================================
-    // VANILLA ARMA 3 AI LOCOMOTION & OBJECTIVE LOOP
+    // VANILLA ARMA 3 AI PATROL ROUTE & ENGAGEMENT LOOP (No Omniscience)
     // =========================================================================
-    [_runner, _sentry1, _sentry2, _commander] spawn {
-        params ["_u", "_t1", "_t2", "_t3"];
+    [_runner, _sentry1Pos, _sentry2Pos, _commanderPos, _sentry1, _sentry2, _commander] spawn {
+        params ["_u", "_p1", "_p2", "_p3", "_t1", "_t2", "_t3"];
         sleep 0.5;
 
-        // Stage 1: Advance towards Sentry 1 (Market Square)
-        systemChat "[AGIA MARINA - VANILLA] Epreuve lancee ! Avance vers Sentry 1 (Place du Marche)...";
-        _u doMove (getPosATL _t1);
+        // Stage 1: Patrol towards Market Square (No prior knowledge of enemy)
+        systemChat "[AGIA MARINA - VANILLA] Patrouille lancee ! Progression vers la Place du Marche...";
+        _u doMove _p1;
 
         while {alive _u && {alive _t1}} do {
             sleep 0.8;
-            if (alive _u && {alive _t1} && {_u distance2D _t1 > 3.0} && {speed _u < 0.4}) then {
-                _u doMove (getPosATL _t1);
+            if (alive _u && {alive _t1} && {_u distance2D _p1 > 4.0} && {speed _u < 0.4}) then {
+                _u doMove _p1;
             };
         };
 
         if (alive _u && {!alive _t1}) then {
-            systemChat "[AGIA MARINA - VANILLA] Sentry 1 neutralisee ! Avance vers Sentry 2 (Carrefour Central)...";
-            _u reveal [_t2, 4];
-            _t2 reveal [_u, 4];
-            _u doMove (getPosATL _t2);
+            systemChat "[AGIA MARINA - VANILLA] Menace du marche eliminee ! Progression vers le Carrefour Central...";
+            _u doMove _p2;
 
-            // Stage 2: Advance towards Sentry 2 (Central Crossroads)
+            // Stage 2: Patrol towards Central Crossroads
             while {alive _u && {alive _t2}} do {
                 sleep 0.8;
-                if (alive _u && {alive _t2} && {_u distance2D _t2 > 3.0} && {speed _u < 0.4}) then {
-                    _u doMove (getPosATL _t2);
+                if (alive _u && {alive _t2} && {_u distance2D _p2 > 4.0} && {speed _u < 0.4}) then {
+                    _u doMove _p2;
                 };
             };
 
             if (alive _u && {!alive _t2}) then {
-                systemChat "[AGIA MARINA - VANILLA] Sentry 2 neutralisee ! Assaut final vers le Commandant (Sortie Nord)...";
-                _u reveal [_t3, 4];
-                _t3 reveal [_u, 4];
-                _u doMove (getPosATL _t3);
+                systemChat "[AGIA MARINA - VANILLA] Carrefour securise ! Progression vers la Sortie Nord...";
+                _u doMove _p3;
 
                 // Stage 3: Advance towards Commander (North Exit)
                 while {alive _u && {alive _t3}} do {

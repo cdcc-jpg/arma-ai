@@ -116,6 +116,13 @@ if (_distToTarget > 2.0) then {
         _unit setUnitPos _safeCoverStance;
     };
 
+    // Micro-positioning to the corner peek point or defilade anchor (Slicing the pie)
+    if (_targetDelta > 0.5 && {time - _lastMoveTime > 0.6}) then {
+        _unit setVariable ["AAI_CurrentMoveTarget", _targetPos];
+        _unit setVariable ["AAI_LastMoveOrderTime", time];
+        _unit doMove _targetPos;
+    };
+
     // Active Sector Surveillance & Weapon Engagement from behind cover
     private _canSeeThreat = false;
     if (!isNull _threat && {_threat isEqualType objNull} && {alive _threat}) then {
