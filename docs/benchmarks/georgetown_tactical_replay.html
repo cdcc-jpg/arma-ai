@@ -4,314 +4,925 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Georgetown Benchmark: TICO Semantic AI vs Bohemia Vanilla AI</title>
-  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    body {
-      background-color: #0b0f19;
-      color: #e2e8f0;
-      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    /* Canonical Priory Critical Edition (v5) Foundation */
+    :root, .light, .theme-day {
+      --bg-canvas: #f5f2eb;
+      --bg-surface-1: #fcfaf5;
+      --bg-surface-2: #f3efe6;
+      --bg-surface-3: #e9e4d8;
+      --border-subtle: #ded8ca;
+      --border-strong: #c7beae;
+      --text-primary: #252830;
+      --text-secondary: #484d59;
+      --text-muted: #666259;
+      --accent-primary: #3b6694;
+      --accent-primary-hover: #2f537a;
+      --accent-primary-text: #fcfaf5;
+      --accent-ochre: #b88438;
+      --status-clear: #3d8b66;
+      --status-clear-bg: #e7f3ed;
+      --status-clear-bd: #b5dac6;
+      --status-warn: #b88438;
+      --status-warn-bg: #f6eedb;
+      --status-warn-bd: #e0cba0;
+      --status-avoid: #942c40;
+      --status-avoid-bg: #f6dfe3;
+      --status-avoid-bd: #e5b2bc;
+      --sigil-proc-fg: #336699;
+      --sigil-proc-bg: rgba(51, 102, 153, 0.09);
+      --sigil-proc-bd: rgba(51, 102, 153, 0.23);
+      --sigil-cont-fg: #9e6b22;
+      --sigil-cont-bg: rgba(158, 107, 34, 0.09);
+      --sigil-cont-bd: rgba(158, 107, 34, 0.23);
+      --shadow-plate: 0 1px 3px rgba(37, 40, 48, 0.04), 0 1px 2px rgba(37, 40, 48, 0.02);
+      --grid-dot: rgba(37, 40, 48, 0.11);
+      --legend-bg: rgba(252, 250, 245, 0.94);
+      --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', 'SF Mono', ui-monospace, Menlo, monospace;
     }
-    .tactical-grid {
-      background-image: 
-        linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
-      background-size: 20px 20px;
+
+    .dark, .theme-dark {
+      --bg-canvas: #171a23;
+      --bg-surface-1: #1e222e;
+      --bg-surface-2: #252a38;
+      --bg-surface-3: #2f3648;
+      --border-subtle: #353c50;
+      --border-strong: #48516b;
+      --text-primary: #ece8e0;
+      --text-secondary: #b5bbc9;
+      --text-muted: #8d94a6;
+      --accent-primary: #7ea4d4;
+      --accent-primary-hover: #6891c6;
+      --accent-primary-text: #141821;
+      --accent-ochre: #d4a15a;
+      --status-clear: #6ec297;
+      --status-clear-bg: rgba(110, 194, 151, 0.14);
+      --status-clear-bd: rgba(110, 194, 151, 0.30);
+      --status-warn: #d4a15a;
+      --status-warn-bg: rgba(212, 161, 90, 0.14);
+      --status-warn-bd: rgba(212, 161, 90, 0.30);
+      --status-avoid: #ee9aa8;
+      --status-avoid-bg: rgba(201, 86, 107, 0.15);
+      --status-avoid-bd: rgba(201, 86, 107, 0.32);
+      --sigil-proc-fg: #7ea8d8;
+      --sigil-proc-bg: rgba(126, 168, 216, 0.13);
+      --sigil-proc-bd: rgba(126, 168, 216, 0.28);
+      --sigil-cont-fg: #dfb068;
+      --sigil-cont-bg: rgba(223, 176, 104, 0.13);
+      --sigil-cont-bd: rgba(223, 176, 104, 0.28);
+      --shadow-plate: 0 1px 3px rgba(0, 0, 0, 0.22);
+      --grid-dot: rgba(236, 232, 224, 0.08);
+      --legend-bg: rgba(30, 34, 46, 0.94);
     }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-canvas);
+      background-image: none;
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 13px;
+      line-height: 1.5;
+      font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    pre, code {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      line-height: 1.55;
+    }
+
+    .tabular { font-variant-numeric: tabular-nums; }
+    .t-prose { font-size: 13.5px; line-height: 1.6; letter-spacing: -0.006em; font-weight: 400; }
+    .t-ui    { font-size: 12.5px; line-height: 1.44; letter-spacing: -0.005em; }
+    .t-meta  { font-size: 11.5px; line-height: 1.4; font-variant-numeric: tabular-nums; }
+
+    .page-shell {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 20px 24px 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* Single-depth elevated plate (1px subtle border, 10px radius) */
+    .plate {
+      background-color: var(--bg-surface-1);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      box-shadow: var(--shadow-plate);
+    }
+
+    /* Header Verdict Plate */
+    .verdict-header {
+      padding: 18px 22px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .verdict-title-block {
+      flex: 1 1 460px;
+      min-width: 280px;
+    }
+    .verdict-context {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .context-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-radius: 5px;
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      font-size: 11.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .verdict-h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.015em;
+      line-height: 1.3;
+      color: var(--text-primary);
+    }
+    .verdict-sub {
+      margin: 4px 0 0;
+      color: var(--text-secondary);
+    }
+
+    .verdict-summary-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: stretch;
+      gap: 16px;
+    }
+    .verdict-stat {
+      padding-left: 16px;
+      border-left: 1px solid var(--border-subtle);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      text-align: right;
+    }
+    .verdict-stat-label {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .verdict-stat-label.sem { color: var(--sigil-proc-fg); }
+    .verdict-stat-label.van { color: var(--sigil-cont-fg); }
+    .verdict-stat-val {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      font-variant-numeric: tabular-nums;
+      margin-top: 2px;
+    }
+    .verdict-stat-val span {
+      font-size: 11.5px;
+      font-weight: 400;
+      color: var(--text-muted);
+    }
+    .verdict-stat-note {
+      font-size: 11.5px;
+      font-variant-numeric: tabular-nums;
+      margin-top: 1px;
+    }
+    .note-clear { color: var(--status-clear); }
+    .note-avoid { color: var(--status-avoid); }
+
+    /* Master Controls Plate */
+    .controls-plate {
+      padding: 14px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .controls-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .btn-group {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 32px;
+      padding: 0 14px;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      background-color: var(--accent-primary);
+      color: var(--accent-primary-text);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+    }
+    .btn-primary:hover { background-color: var(--accent-primary-hover); }
+    .btn-primary.is-paused {
+      background-color: var(--status-warn-bg);
+      color: var(--status-warn);
+      border-color: var(--status-warn-bd);
+    }
+
+    .btn-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 32px;
+      min-height: 32px;
+      padding: 0 9px;
+      border-radius: 6px;
+      border: 1px solid var(--border-subtle);
+      background-color: var(--bg-surface-2);
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 12.5px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-icon:hover {
+      background-color: var(--bg-surface-3);
+      color: var(--text-primary);
+      border-color: var(--border-strong);
+    }
+
+    .segmented-bar {
+      display: inline-flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px;
+      border-radius: 7px;
+      background-color: var(--bg-surface-2);
+      border: 1px solid var(--border-subtle);
+    }
+    .seg-btn {
+      min-height: 28px;
+      padding: 0 10px;
+      border: none;
+      border-radius: 5px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-sans);
+      font-size: 11.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      cursor: pointer;
+      transition: background-color 0.12s ease, color 0.12s ease;
+    }
+    .seg-btn:hover { color: var(--text-primary); }
+    .seg-btn.is-active {
+      background-color: var(--bg-surface-1);
+      color: var(--text-primary);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+    }
+
+    .time-readout {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 5px;
+      padding: 4px 10px;
+      min-height: 32px;
+      border-radius: 6px;
+      background-color: var(--bg-surface-2);
+      border: 1px solid var(--border-subtle);
+      font-size: 12.5px;
+      font-variant-numeric: tabular-nums;
+    }
+    .time-readout .time-val {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .time-readout .time-muted {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .toggle-group {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 12px;
+    }
+    .toggle-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      min-height: 28px;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: var(--text-secondary);
+      user-select: none;
+    }
+    .toggle-label input[type="checkbox"] {
+      width: 14px;
+      height: 14px;
+      margin: 0;
+      accent-color: var(--accent-primary);
+      cursor: pointer;
+    }
+
+    .scrubber-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    input[type="range"]#timelineSlider {
+      width: 100%;
+      height: 6px;
+      accent-color: var(--accent-primary);
+      cursor: pointer;
+      margin: 0;
+    }
+    .scrubber-ticks {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+    .scrubber-ticks .tick-warn { color: var(--status-warn); font-weight: 500; }
+
+    /* Dual Arena Grid */
+    .arena-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 16px;
+      align-items: start;
+    }
+    @media (max-width: 1024px) {
+      .arena-grid { grid-template-columns: 1fr; }
+    }
+
+    .arena-plate {
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      gap: 12px;
+    }
+    .arena-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .arena-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .arena-title {
+      margin: 0;
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      letter-spacing: -0.01em;
+    }
+    .arena-badges {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .score-badge {
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .score-badge.sem {
+      background: var(--sigil-proc-bg);
+      color: var(--sigil-proc-fg);
+      border: 1px solid var(--sigil-proc-bd);
+    }
+    .score-badge.van {
+      background: var(--sigil-cont-bg);
+      color: var(--sigil-cont-fg);
+      border: 1px solid var(--sigil-cont-bd);
+    }
+    .status-pill {
+      padding: 2px 8px;
+      border-radius: 5px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+    .status-pill.is-complete {
+      background: var(--status-clear-bg);
+      color: var(--status-clear);
+      border-color: var(--status-clear-bd);
+    }
+
+    /* 2D Tactical Viewport (dot-grid restricted strictly to canvas element) */
     .canvas-container {
       position: relative;
-      background: radial-gradient(circle at 50% 50%, #151d30 0%, #0d121f 100%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 0.75rem;
+      display: flex;
+      justify-content: center;
+      padding: 8px 0;
+      background-color: var(--bg-surface-2);
+      border-radius: 8px;
       overflow: hidden;
     }
-    input[type=range] {
-      accent-color: #38bdf8;
+    .tactical-grid {
+      background-image: radial-gradient(var(--grid-dot) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border-radius: 6px;
+      max-width: 100%;
+      height: auto;
+    }
+
+    /* Floating Map Legend (Overlay inside canvas viewport) */
+    .canvas-legend {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      background-color: var(--legend-bg);
+      border: 1px solid var(--border-subtle);
+      border-radius: 7px;
+      padding: 8px 10px;
+      font-size: 11.5px;
+      line-height: 1.45;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .legend-group-title {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+      padding-bottom: 2px;
+      margin-bottom: 1px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .legend-group-title.opfor {
+      margin-top: 4px;
+    }
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: var(--text-secondary);
+    }
+    .legend-row strong {
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    /* Clean 8px CSS rounded status/unit dots (replaces mojibake emojis) */
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .dot-sem     { background-color: var(--sigil-proc-fg); }
+    .dot-van     { background-color: var(--sigil-cont-fg); }
+    .dot-lead    { background-color: #d4a15a; }
+    .dot-support { background-color: #4a78a8; }
+    .dot-mks     { background-color: #3d8b66; }
+    .dot-opfor   { background-color: #c9566b; }
+
+    /* Unboxed hairline-divided 3-unit telemetry strip (zero nested boxes) */
+    .telemetry-strip {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      padding-top: 10px;
+      border-top: 1px solid var(--border-subtle);
+    }
+    .unit-cell {
+      padding: 2px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .unit-cell:first-child { padding-left: 0; }
+    .unit-cell:last-child  { padding-right: 0; }
+    .unit-cell + .unit-cell {
+      border-left: 1px solid var(--border-subtle);
+    }
+    .unit-role {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .unit-metrics {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+    .unit-hp {
+      font-size: 13.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+    }
+    .hp-high { color: var(--status-clear); }
+    .hp-mid  { color: var(--status-warn); }
+    .hp-low  { color: var(--status-avoid); }
+
+    .stance-badge {
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-size: 11.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      background: var(--bg-surface-2);
+      color: var(--text-secondary);
+      border: 1px solid var(--border-subtle);
+    }
+    .stance-badge.is-cover {
+      background: var(--status-clear-bg);
+      color: var(--status-clear);
+      border-color: var(--status-clear-bd);
+    }
+    .unit-state {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Comparative Ledger Plate */
+    .ledger-plate {
+      padding: 18px 22px;
+    }
+    .ledger-head {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 12px;
+      font-size: 14.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+    .ledger-wrap { overflow-x: auto; }
+    .ledger-table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    .ledger-table th {
+      padding: 9px 12px;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background-color: var(--bg-surface-2);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .ledger-table th.col-sem { color: var(--sigil-proc-fg); }
+    .ledger-table th.col-van { color: var(--sigil-cont-fg); }
+    .ledger-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border-subtle);
+      vertical-align: top;
+    }
+    .ledger-table tbody tr:last-child td { border-bottom: none; }
+    .metric-name {
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .metric-val {
+      font-size: 12.5px;
+      font-weight: 500;
+      font-variant-numeric: tabular-nums;
+      color: var(--text-primary);
+    }
+    .metric-val.sem   { color: var(--sigil-proc-fg); }
+    .metric-val.van   { color: var(--sigil-cont-fg); }
+    .metric-val.clear { color: var(--status-clear); }
+    .metric-val.avoid { color: var(--status-avoid); }
+    .metric-val.muted { color: var(--text-muted); font-weight: 400; }
+    .metric-obs {
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text-secondary);
     }
   </style>
 </head>
-<body class="p-4 md:p-6 min-h-screen">
-  <div class="max-w-7xl mx-auto space-y-6">
-    
-    <!-- Header -->
-    <header class="bg-[#111827] border border-slate-800 rounded-2xl p-5 shadow-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-      <div>
-        <div class="flex items-center gap-3">
-          <span class="px-2.5 py-1 rounded-md text-xs font-bold tracking-wider uppercase bg-cyan-500/10 text-cyan-400 border border-cyan-500/30">Tanoa 2D Benchmark</span>
-          <span class="px-2.5 py-1 rounded-md text-xs font-bold tracking-wider uppercase bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">Live RPT Telemetry</span>
-          <span class="text-xs text-slate-400">2 Hz High-Resolution Sampling (0.5s)</span>
+<body>
+  <div class="page-shell">
+
+    <!-- 1. Answer-First Verdict Header -->
+    <header class="plate verdict-header">
+      <div class="verdict-title-block">
+        <div class="verdict-context">
+          <span class="context-chip">Tanoa 2D Replay</span>
+          <span class="t-meta">2.0 Hz RPT Telemetry (0.5s step)</span>
         </div>
-        <h1 class="text-2xl md:text-3xl font-extrabold text-white mt-2 tracking-tight">Georgetown Urban Benchmark: Semantic AI vs Vanilla AI</h1>
-        <p class="text-slate-400 text-sm mt-1">Real-time tactical comparison along the 325m urban corridor &mdash; 3 BLUFOR (250 HP) vs 8 fortified OPFOR ambush defenders.</p>
+        <h1 class="verdict-h1">Georgetown Urban Benchmark: Semantic AI vs Vanilla AI</h1>
+        <p class="verdict-sub t-prose">Real-time tactical comparison along the 325m urban corridor &mdash; 3 BLUFOR (250 HP) vs 8 fortified OPFOR ambush defenders.</p>
       </div>
 
-      <!-- Quick Metrics Pills -->
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2 text-right">
-          <div class="text-[10px] uppercase font-bold tracking-wider text-cyan-400">Semantic AI (TICO)</div>
-          <div class="text-lg font-extrabold text-white">6 / 8 Targets <span class="text-xs text-slate-400 font-normal">(493.7s)</span></div>
-          <div class="text-[11px] text-emerald-400 font-medium">724 crouched cover frames (25.5%)</div>
+      <div class="verdict-summary-group">
+        <div class="verdict-stat">
+          <div class="verdict-stat-label sem">Semantic AI (TICO)</div>
+          <div class="verdict-stat-val">6 / 8 Targets <span>(493.7s)</span></div>
+          <div class="verdict-stat-note note-clear">724 crouched cover frames (25.5%)</div>
         </div>
-        <div class="bg-slate-900/80 border border-slate-700/60 rounded-xl px-4 py-2 text-right">
-          <div class="text-[10px] uppercase font-bold tracking-wider text-amber-400">Vanilla AI (BI FSM)</div>
-          <div class="text-lg font-extrabold text-white">5 / 8 Targets <span class="text-xs text-slate-400 font-normal">(143.2s)</span></div>
-          <div class="text-[11px] text-rose-400 font-medium">0 cover frames (100% upright)</div>
+        <div class="verdict-stat">
+          <div class="verdict-stat-label van">Vanilla AI (BI FSM)</div>
+          <div class="verdict-stat-val">5 / 8 Targets <span>(143.2s)</span></div>
+          <div class="verdict-stat-note note-avoid">0 cover frames (100% upright)</div>
+        </div>
+        <div style="display:flex;align-items:center;">
+          <button id="btnThemeToggle" type="button" class="btn-icon" title="Switch Daylight / Nocturne Theme" aria-label="Switch Daylight or Nocturne theme">
+            <svg id="iconTheme" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <circle cx="12" cy="12" r="4"></circle>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+            </svg>
+            <span id="labelTheme" class="t-meta">Daylight</span>
+          </button>
         </div>
       </div>
     </header>
 
-    <!-- Master Controls Bar -->
-    <div class="bg-[#111827] border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
-      <div class="flex flex-col md:flex-row items-center justify-between gap-4">
-        
-        <!-- Play / Pause & Steps -->
-        <div class="flex items-center gap-2">
-          <button id="btnPlay" class="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-semibold text-sm transition-all shadow-lg shadow-cyan-950/50">
-            <svg id="iconPlay" class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <!-- 2. Master Replay Controls & Timeline -->
+    <div class="plate controls-plate">
+      <div class="controls-row">
+
+        <!-- Play / Pause & Transport -->
+        <div class="btn-group">
+          <button id="btnPlay" type="button" class="btn-primary">
+            <svg id="iconPlay" width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
             <span id="labelPlay">Play</span>
           </button>
-          <button id="btnStepBack" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Step Back 5s">
-            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
+          <button id="btnStepBack" type="button" class="btn-icon" title="Step Back 5s" aria-label="Step Back 5 seconds">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M11 18V6l-8.5 6 8.5 6zm.5-6l8.5 6V6l-8.5 6z"/></svg>
           </button>
-          <button id="btnStepForward" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Step Forward 5s">
-            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
+          <button id="btnStepForward" type="button" class="btn-icon" title="Step Forward 5s" aria-label="Step Forward 5 seconds">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 18l8.5-6L4 6v12zm9-12v12l8.5-6L13 6z"/></svg>
           </button>
-          <button id="btnReset" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition" title="Reset Timeline">
-            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
+          <button id="btnReset" type="button" class="btn-icon" title="Reset Timeline" aria-label="Reset Timeline">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/></svg>
           </button>
         </div>
 
-        <!-- Time & Mode Displays -->
-        <div class="flex items-center gap-4 text-sm">
-          <div class="bg-slate-900 border border-slate-800 rounded-lg px-3 py-1.5 font-mono">
-            <span class="text-slate-400">Time:</span>
-            <span id="timeDisplay" class="font-bold text-cyan-400 text-base">0.0s</span>
-            <span class="text-slate-500">/ 493.7s</span>
+        <!-- Time, Sync Mode & Speed -->
+        <div class="btn-group" style="flex-wrap:wrap;">
+          <div class="time-readout">
+            <span class="time-muted">Time</span>
+            <span id="timeDisplay" class="time-val">0.0s</span>
+            <span class="time-muted">/ 493.7s</span>
           </div>
 
-          <!-- Sync Mode Selector -->
-          <div class="flex items-center bg-slate-900 border border-slate-800 p-1 rounded-xl">
-            <button id="btnModeRealtime" class="px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-600 text-white transition">Real-Time (s)</button>
-            <button id="btnModeNormalized" class="px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition">Progress (%)</button>
+          <div class="segmented-bar" role="group" aria-label="Timeline sync mode">
+            <button id="btnModeRealtime" type="button" class="seg-btn is-active">Real-Time (s)</button>
+            <button id="btnModeNormalized" type="button" class="seg-btn">Progress (%)</button>
           </div>
 
-          <!-- Speed Selector -->
-          <div class="flex items-center gap-1 bg-slate-900 border border-slate-800 p-1 rounded-xl">
-            <button class="btnSpeed px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white" data-speed="1">1x</button>
-            <button class="btnSpeed px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-600 text-white font-bold" data-speed="2">2x</button>
-            <button class="btnSpeed px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white" data-speed="5">5x</button>
-            <button class="btnSpeed px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white" data-speed="10">10x</button>
+          <div class="segmented-bar" role="group" aria-label="Playback speed">
+            <button type="button" class="btnSpeed seg-btn" data-speed="1">1x</button>
+            <button type="button" class="btnSpeed seg-btn is-active" data-speed="2">2x</button>
+            <button type="button" class="btnSpeed seg-btn" data-speed="5">5x</button>
+            <button type="button" class="btnSpeed seg-btn" data-speed="10">10x</button>
           </div>
         </div>
 
-        <!-- Visual Toggles -->
-        <div class="flex flex-wrap items-center gap-3 text-xs">
-          <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
-            <input type="checkbox" id="chkBuildings" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
-            Buildings & Walls
+        <!-- Overlay Toggles -->
+        <div class="toggle-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="chkBuildings" checked>
+            Buildings &amp; Walls
           </label>
-          <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
-            <input type="checkbox" id="chkThreats" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
-            Enemy Threat Cones
+          <label class="toggle-label">
+            <input type="checkbox" id="chkThreats" checked>
+            Threat Cones
           </label>
-          <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
-            <input type="checkbox" id="chkTrails" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+          <label class="toggle-label">
+            <input type="checkbox" id="chkTrails" checked>
             Trails
           </label>
-          <label class="flex items-center gap-1.5 cursor-pointer text-slate-300">
-            <input type="checkbox" id="chkLinks" checked class="rounded bg-slate-800 border-slate-700 text-cyan-500 focus:ring-0">
+          <label class="toggle-label">
+            <input type="checkbox" id="chkLinks" checked>
             Squad Spacing
           </label>
         </div>
       </div>
 
-      <!-- Timeline Scrubber -->
-      <div class="space-y-1">
-        <input type="range" id="timelineSlider" min="0" max="493.7" step="0.5" value="0" class="w-full h-2 bg-slate-800 rounded-lg cursor-pointer">
-        <div class="flex justify-between text-[11px] text-slate-500 font-mono px-1">
-          <span>0.0s (South Alley Entry)</span>
-          <span class="text-amber-400">143.2s (Vanilla End)</span>
-          <span>493.7s (Semantic Complete)</span>
+      <!-- Scrubber -->
+      <div class="scrubber-wrap">
+        <input type="range" id="timelineSlider" min="0" max="493.7" step="0.5" value="0">
+        <div class="scrubber-ticks">
+          <span>0.0s &middot; South Alley Entry</span>
+          <span class="tick-warn">143.2s &middot; Vanilla End</span>
+          <span>493.7s &middot; Semantic Complete</span>
         </div>
       </div>
     </div>
 
-    <!-- Dual Side-by-Side Canvas Arena -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Dual Side-by-Side Tactical Viewports -->
+    <div class="arena-grid">
 
       <!-- LEFT: SEMANTIC TICO -->
-      <div class="bg-[#111827] border border-cyan-500/30 rounded-2xl p-5 shadow-2xl flex flex-col justify-between">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-          <div class="flex items-center gap-2.5">
-            <div class="w-3 h-3 rounded-full bg-cyan-400 animate-pulse"></div>
-            <h2 class="font-bold text-white text-lg tracking-wide">TICO Semantic AI (Ontology Engine)</h2>
+      <section class="plate arena-plate">
+        <div class="arena-head">
+          <div class="arena-title-wrap">
+            <span class="status-dot dot-sem" aria-hidden="true"></span>
+            <h2 class="arena-title">TICO Semantic AI (Ontology Engine)</h2>
           </div>
-          <div class="flex items-center gap-2">
-            <span id="semScoreBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/40">Targets: 0/8</span>
-            <span id="semStatusBadge" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300 font-mono">In Combat...</span>
-          </div>
-        </div>
-
-        <!-- Canvas Container -->
-        <div class="canvas-container relative flex justify-center py-2">
-          <canvas id="canvasSemantic" width="440" height="760" class="tactical-grid rounded-lg shadow-inner"></canvas>
-          
-          <!-- Legend Box -->
-          <div class="absolute top-3 left-3 bg-slate-900/95 backdrop-blur border border-slate-700/80 rounded-lg p-2.5 text-[11px] space-y-1 shadow-xl pointer-events-none">
-            <div class="font-bold text-cyan-400 border-b border-slate-800 pb-1">BLUFOR TRINOME</div>
-            <div class="text-slate-300">ðŸŸ¡ <span class="font-semibold text-yellow-300">Pointman</span> (Lead Scout)</div>
-            <div class="text-slate-300">ðŸ”µ <span class="font-semibold text-sky-400">Support</span> (Autorifleman AR)</div>
-            <div class="text-slate-300">ðŸŸ¢ <span class="font-semibold text-emerald-400">Marksman</span> (Sniper Standoff)</div>
-            <div class="font-bold text-rose-400 border-b border-slate-800 pt-1.5 pb-1">OPFOR DEFENDERS</div>
-            <div class="text-slate-300">ðŸ”´ <span class="font-semibold text-rose-400">Ambush Target</span> (Defensive Guard)</div>
+          <div class="arena-badges">
+            <span id="semScoreBadge" class="score-badge sem">Targets: 0 / 8</span>
+            <span id="semStatusBadge" class="status-pill">In Combat...</span>
           </div>
         </div>
 
-        <!-- Telemetry Cards -->
-        <div class="grid grid-cols-3 gap-2 mt-4 text-xs font-mono">
-          <!-- Lead -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-yellow-400 font-bold uppercase">Pointman (Lead)</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="semLeadHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="semLeadStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="semLeadState" class="text-[10px] text-slate-400 truncate mt-1">MOVE_TO_COVER</div>
-          </div>
-          <!-- AR -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-sky-400 font-bold uppercase">Support (AR)</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="semARHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="semARStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="semARState" class="text-[10px] text-slate-400 truncate mt-1">OVERWATCH</div>
-          </div>
-          <!-- Marksman -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-emerald-400 font-bold uppercase">Marksman</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="semMksHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="semMksStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="semMksState" class="text-[10px] text-slate-400 truncate mt-1">STANDOFF</div>
+        <div class="canvas-container">
+          <canvas id="canvasSemantic" width="440" height="760" class="tactical-grid"></canvas>
+
+          <div class="canvas-legend">
+            <div class="legend-group-title">BLUFOR Trinome</div>
+            <div class="legend-row"><span class="status-dot dot-lead"></span><span><strong>Pointman</strong> (Lead Scout)</span></div>
+            <div class="legend-row"><span class="status-dot dot-support"></span><span><strong>Support</strong> (Autorifleman AR)</span></div>
+            <div class="legend-row"><span class="status-dot dot-mks"></span><span><strong>Marksman</strong> (Sniper Standoff)</span></div>
+            <div class="legend-group-title opfor">OPFOR Defenders</div>
+            <div class="legend-row"><span class="status-dot dot-opfor"></span><span><strong>Ambush Target</strong> (Defensive Guard)</span></div>
           </div>
         </div>
-      </div>
+
+        <div class="telemetry-strip">
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-lead"></span>Pointman (Lead)</div>
+            <div class="unit-metrics">
+              <span id="semLeadHP" class="unit-hp hp-high">250 HP</span>
+              <span id="semLeadStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="semLeadState" class="unit-state">MOVE_TO_COVER</div>
+          </div>
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-support"></span>Support (AR)</div>
+            <div class="unit-metrics">
+              <span id="semARHP" class="unit-hp hp-high">250 HP</span>
+              <span id="semARStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="semARState" class="unit-state">OVERWATCH</div>
+          </div>
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-mks"></span>Marksman</div>
+            <div class="unit-metrics">
+              <span id="semMksHP" class="unit-hp hp-high">250 HP</span>
+              <span id="semMksStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="semMksState" class="unit-state">STANDOFF</div>
+          </div>
+        </div>
+      </section>
 
       <!-- RIGHT: VANILLA BOHEMIA -->
-      <div class="bg-[#111827] border border-amber-500/30 rounded-2xl p-5 shadow-2xl flex flex-col justify-between">
-        <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
-          <div class="flex items-center gap-2.5">
-            <div class="w-3 h-3 rounded-full bg-amber-400"></div>
-            <h2 class="font-bold text-white text-lg tracking-wide">Bohemia Vanilla AI (Native FSM)</h2>
+      <section class="plate arena-plate">
+        <div class="arena-head">
+          <div class="arena-title-wrap">
+            <span class="status-dot dot-van" aria-hidden="true"></span>
+            <h2 class="arena-title">Bohemia Vanilla AI (Native FSM)</h2>
           </div>
-          <div class="flex items-center gap-2">
-            <span id="vanScoreBadge" class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40">Targets: 0/8</span>
-            <span id="vanStatusBadge" class="px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300 font-mono">In Combat...</span>
-          </div>
-        </div>
-
-        <!-- Canvas Container -->
-        <div class="canvas-container relative flex justify-center py-2">
-          <canvas id="canvasVanilla" width="440" height="760" class="tactical-grid rounded-lg shadow-inner"></canvas>
-          
-          <!-- Legend Box -->
-          <div class="absolute top-3 left-3 bg-slate-900/95 backdrop-blur border border-slate-700/80 rounded-lg p-2.5 text-[11px] space-y-1 shadow-xl pointer-events-none">
-            <div class="font-bold text-amber-400 border-b border-slate-800 pb-1">BLUFOR TRINOME</div>
-            <div class="text-slate-300">ðŸŸ¡ <span class="font-semibold text-yellow-300">Pointman</span> (Lead)</div>
-            <div class="text-slate-300">ðŸ”µ <span class="font-semibold text-sky-400">Support</span> (Follow Lead)</div>
-            <div class="text-slate-300">ðŸŸ¢ <span class="font-semibold text-emerald-400">Marksman</span> (Follow Lead)</div>
-            <div class="font-bold text-rose-400 border-b border-slate-800 pt-1.5 pb-1">OPFOR DEFENDERS</div>
-            <div class="text-slate-300">ðŸ”´ <span class="font-semibold text-rose-400">Ambush Target</span> (Defensive Guard)</div>
+          <div class="arena-badges">
+            <span id="vanScoreBadge" class="score-badge van">Targets: 0 / 8</span>
+            <span id="vanStatusBadge" class="status-pill">In Combat...</span>
           </div>
         </div>
 
-        <!-- Telemetry Cards -->
-        <div class="grid grid-cols-3 gap-2 mt-4 text-xs font-mono">
-          <!-- Lead -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-yellow-400 font-bold uppercase">Pointman (Lead)</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="vanLeadHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="vanLeadStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="vanLeadState" class="text-[10px] text-slate-400 truncate mt-1">VANILLA_AI</div>
-          </div>
-          <!-- AR -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-sky-400 font-bold uppercase">Support (AR)</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="vanARHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="vanARStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="vanARState" class="text-[10px] text-slate-400 truncate mt-1">VANILLA_AI</div>
-          </div>
-          <!-- Marksman -->
-          <div class="bg-slate-900/80 border border-slate-800 rounded-xl p-2.5">
-            <div class="text-[10px] text-emerald-400 font-bold uppercase">Marksman</div>
-            <div class="flex items-center justify-between mt-1">
-              <span id="vanMksHP" class="font-bold text-emerald-400 text-sm">250 HP</span>
-              <span id="vanMksStc" class="px-1.5 py-0.5 rounded bg-slate-800 text-[10px] text-slate-300">STAND</span>
-            </div>
-            <div id="vanMksState" class="text-[10px] text-slate-400 truncate mt-1">VANILLA_AI</div>
+        <div class="canvas-container">
+          <canvas id="canvasVanilla" width="440" height="760" class="tactical-grid"></canvas>
+
+          <div class="canvas-legend">
+            <div class="legend-group-title">BLUFOR Trinome</div>
+            <div class="legend-row"><span class="status-dot dot-lead"></span><span><strong>Pointman</strong> (Lead)</span></div>
+            <div class="legend-row"><span class="status-dot dot-support"></span><span><strong>Support</strong> (Follow Lead)</span></div>
+            <div class="legend-row"><span class="status-dot dot-mks"></span><span><strong>Marksman</strong> (Follow Lead)</span></div>
+            <div class="legend-group-title opfor">OPFOR Defenders</div>
+            <div class="legend-row"><span class="status-dot dot-opfor"></span><span><strong>Ambush Target</strong> (Defensive Guard)</span></div>
           </div>
         </div>
-      </div>
+
+        <div class="telemetry-strip">
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-lead"></span>Pointman (Lead)</div>
+            <div class="unit-metrics">
+              <span id="vanLeadHP" class="unit-hp hp-high">250 HP</span>
+              <span id="vanLeadStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="vanLeadState" class="unit-state">VANILLA_AI</div>
+          </div>
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-support"></span>Support (AR)</div>
+            <div class="unit-metrics">
+              <span id="vanARHP" class="unit-hp hp-high">250 HP</span>
+              <span id="vanARStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="vanARState" class="unit-state">VANILLA_AI</div>
+          </div>
+          <div class="unit-cell">
+            <div class="unit-role"><span class="status-dot dot-mks"></span>Marksman</div>
+            <div class="unit-metrics">
+              <span id="vanMksHP" class="unit-hp hp-high">250 HP</span>
+              <span id="vanMksStc" class="stance-badge">STAND</span>
+            </div>
+            <div id="vanMksState" class="unit-state">VANILLA_AI</div>
+          </div>
+        </div>
+      </section>
 
     </div>
 
-    <!-- Comparative Table -->
-    <div class="bg-[#111827] border border-slate-800 rounded-2xl p-6 shadow-2xl">
-      <h3 class="text-lg font-bold text-white mb-4 flex items-center gap-2">
-        <svg class="w-5 h-5 text-cyan-400 fill-current" viewBox="0 0 24 24"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10h-4v4h-2v-4H7v-2h4V7h2v4h4v2z"/></svg>
-        Detailed Tactical Performance Analysis
+    <!-- 3. Comparative Performance Ledger -->
+    <section class="plate ledger-plate">
+      <h3 class="ledger-head">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+        Comparative Tactical Performance Ledger
       </h3>
-      
-      <div class="overflow-x-auto">
-        <table class="w-full text-left text-sm text-slate-300 border-collapse">
+
+      <div class="ledger-wrap">
+        <table class="ledger-table">
           <thead>
-            <tr class="border-b border-slate-800 text-xs font-semibold uppercase tracking-wider text-slate-400 bg-slate-900/50">
-              <th class="p-3">Tactical Metric</th>
-              <th class="p-3 text-cyan-400">TICO Semantic AI</th>
-              <th class="p-3 text-amber-400">Bohemia Vanilla AI</th>
-              <th class="p-3">Observed Behavioral Difference</th>
+            <tr>
+              <th>Tactical Metric</th>
+              <th class="col-sem">TICO Semantic AI</th>
+              <th class="col-van">Bohemia Vanilla AI</th>
+              <th>Observed Behavioral Difference</th>
             </tr>
           </thead>
-          <tbody class="divide-y divide-slate-800 font-mono text-xs">
+          <tbody>
             <tr>
-              <td class="p-3 font-sans font-medium text-white">Target Clearance Score</td>
-              <td class="p-3 font-bold text-cyan-400">6 / 8 Targets (75.0%)</td>
-              <td class="p-3 font-bold text-amber-400">5 / 8 Targets (62.5%)</td>
-              <td class="p-3 font-sans text-slate-400">Semantic breached the fortified North Barricade, advancing 32m further north.</td>
+              <td class="metric-name">Target Clearance Score</td>
+              <td class="metric-val sem">6 / 8 Targets (75.0%)</td>
+              <td class="metric-val van">5 / 8 Targets (62.5%)</td>
+              <td class="metric-obs">Semantic breached the fortified North Barricade, advancing 32m further north.</td>
             </tr>
             <tr>
-              <td class="p-3 font-sans font-medium text-white">Total Combat Duration</td>
-              <td class="p-3 text-cyan-400">493.7 s (8m 13s)</td>
-              <td class="p-3 text-amber-400">143.2 s (2m 23s)</td>
-              <td class="p-3 font-sans text-slate-400">Vanilla sprinted forward aggressively; Semantic methodically leapfrogged using mutual overwatch.</td>
+              <td class="metric-name">Total Combat Duration</td>
+              <td class="metric-val sem">493.7 s (8m 13s)</td>
+              <td class="metric-val van">143.2 s (2m 23s)</td>
+              <td class="metric-obs">Vanilla sprinted forward aggressively; Semantic methodically leapfrogged using mutual overwatch.</td>
             </tr>
             <tr>
-              <td class="p-3 font-sans font-medium text-white">Cover Utilization (Crouch)</td>
-              <td class="p-3 text-emerald-400 font-bold">724 frames (25.5%)</td>
-              <td class="p-3 text-rose-400 font-bold">0 frames (0.0%)</td>
-              <td class="p-3 font-sans text-slate-400">Vanilla remained 100% upright in fatal funnels. Semantic actively ducked behind masonry walls.</td>
+              <td class="metric-name">Cover Utilization (Crouch)</td>
+              <td class="metric-val clear">724 frames (25.5%)</td>
+              <td class="metric-val avoid">0 frames (0.0%)</td>
+              <td class="metric-obs">Vanilla remained 100% upright in fatal funnels. Semantic actively ducked behind masonry walls.</td>
             </tr>
             <tr>
-              <td class="p-3 font-sans font-medium text-white">CQB Micro-Maneuvers (Pieing)</td>
-              <td class="p-3 text-cyan-400 font-bold">243 corner slices</td>
-              <td class="p-3 text-slate-500">0 (Linear sprint)</td>
-              <td class="p-3 font-sans text-slate-400">Methodical corner pie-slicing at 17&deg;, 34&deg;, 51&deg;, 68&deg;, 85&deg; to minimize bodily exposure.</td>
+              <td class="metric-name">CQB Micro-Maneuvers (Pieing)</td>
+              <td class="metric-val sem">243 corner slices</td>
+              <td class="metric-val muted">0 (Linear sprint)</td>
+              <td class="metric-obs">Methodical corner pie-slicing at 17&deg;, 34&deg;, 51&deg;, 68&deg;, 85&deg; to minimize bodily exposure.</td>
             </tr>
             <tr>
-              <td class="p-3 font-sans font-medium text-white">Squad Spacing &amp; Roles</td>
-              <td class="p-3 text-cyan-400">15m &ndash; 45m (Staggered)</td>
-              <td class="p-3 text-amber-400">&lt; 6m (Clumped)</td>
-              <td class="p-3 font-sans text-slate-400">Marksman maintained standoff while AR provided base of fire. Vanilla bunched up directly behind lead.</td>
+              <td class="metric-name">Squad Spacing &amp; Roles</td>
+              <td class="metric-val sem">15m &ndash; 45m (Staggered)</td>
+              <td class="metric-val van">&lt; 6m (Clumped)</td>
+              <td class="metric-obs">Marksman maintained standoff while AR provided base of fire. Vanilla bunched up directly behind lead.</td>
             </tr>
           </tbody>
         </table>
       </div>
-    </div>
+    </section>
 
   </div>
 
@@ -392,10 +1003,16 @@
     let syncMode = 'realtime';
     let lastFrameTimestamp = null;
 
+    const SANS_STACK = "-apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Text', system-ui, sans-serif";
+
+    function isLightTheme() {
+      return document.documentElement.classList.contains('light');
+    }
+
     const UNIT_COLORS = {
-      0: { stroke: '#eab308', fill: '#facc15', label: 'LEAD', trail: 'rgba(234, 179, 8, 0.4)' },
-      1: { stroke: '#0284c7', fill: '#38bdf8', label: 'AR',   trail: 'rgba(56, 189, 248, 0.4)' },
-      2: { stroke: '#059669', fill: '#34d399', label: 'MKS',  trail: 'rgba(52, 211, 153, 0.4)' }
+      0: { stroke: '#b88438', fill: '#d4a15a', label: 'LEAD', trail: 'rgba(212, 161, 90, 0.42)' },
+      1: { stroke: '#3b6694', fill: '#5f8fc2', label: 'AR',   trail: 'rgba(95, 143, 194, 0.42)' },
+      2: { stroke: '#347555', fill: '#6ec297', label: 'MKS',  trail: 'rgba(110, 194, 151, 0.42)' }
     };
 
     function getInterpolatedState(frames, t) {
@@ -447,15 +1064,16 @@
     }
 
     function drawMapBackground(ctx, title, isSemantic) {
+      const light = isLightTheme();
       ctx.clearRect(0, 0, W, H);
       ctx.save();
 
       // Waterfront / Bay at top of map
       const pWater = toCanvas(5720, 10432);
-      ctx.fillStyle = '#082f49';
+      ctx.fillStyle = light ? '#dce6ef' : '#1b2838';
       ctx.fillRect(0, 0, W, pWater.y);
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 9px sans-serif';
+      ctx.fillStyle = light ? '#3b6694' : '#7ea4d4';
+      ctx.font = '500 9px ' + SANS_STACK;
       ctx.fillText('GEORGETOWN HARBOR (SECTOR NORTH)', 20, 18);
 
       // Paved Roads & Alleys
@@ -463,7 +1081,7 @@
       const pAve = toCanvas(5712, 10115);
 
       // East Alley corridor
-      ctx.fillStyle = 'rgba(30, 41, 59, 0.7)';
+      ctx.fillStyle = light ? 'rgba(199, 190, 174, 0.45)' : 'rgba(47, 54, 72, 0.72)';
       ctx.fillRect(pSpawn.x - 10, pWater.y, 22, (H - pWater.y));
 
       // Main Avenue corridor
@@ -476,7 +1094,7 @@
       });
 
       // Road Centerlines
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.12)';
+      ctx.strokeStyle = light ? 'rgba(72, 77, 89, 0.22)' : 'rgba(236, 232, 224, 0.14)';
       ctx.lineWidth = 1;
       ctx.setLineDash([4, 6]);
 
@@ -502,39 +1120,34 @@
           const hPx = pBR.y - pTL.y;
 
           if (b.isMarket) {
-            // Market canopy: translucent dashed outline with interior columns
-            ctx.fillStyle = 'rgba(30, 58, 138, 0.35)';
+            ctx.fillStyle = light ? 'rgba(59, 102, 148, 0.11)' : 'rgba(126, 164, 212, 0.14)';
             ctx.fillRect(pTL.x, pTL.y, wPx, hPx);
-            ctx.strokeStyle = '#60a5fa';
+            ctx.strokeStyle = light ? '#3b6694' : '#7ea4d4';
             ctx.lineWidth = 1.5;
             ctx.setLineDash([3, 3]);
             ctx.strokeRect(pTL.x, pTL.y, wPx, hPx);
             ctx.setLineDash([]);
 
-            // Columns
-            ctx.fillStyle = '#93c5fd';
+            ctx.fillStyle = light ? '#4a78a8' : '#9bbbe0';
             for (let cx = pTL.x + 6; cx < pBR.x; cx += 14) {
               for (let cy = pTL.y + 6; cy < pBR.y; cy += 14) {
                 ctx.fillRect(cx - 2, cy - 2, 4, 4);
               }
             }
           } else if (b.isCourtyard) {
-            // Walled Courtyard
-            ctx.fillStyle = 'rgba(15, 23, 42, 0.8)';
+            ctx.fillStyle = light ? 'rgba(233, 228, 216, 0.85)' : 'rgba(23, 26, 35, 0.82)';
             ctx.fillRect(pTL.x, pTL.y, wPx, hPx);
-            ctx.strokeStyle = '#94a3b8';
+            ctx.strokeStyle = light ? '#8c8578' : '#8d94a6';
             ctx.lineWidth = 1.5;
             ctx.strokeRect(pTL.x, pTL.y, wPx, hPx);
           } else {
-            // Solid Colonial Buildings
-            ctx.fillStyle = '#1e293b';
+            ctx.fillStyle = light ? '#e5dfd2' : '#252a38';
             ctx.fillRect(pTL.x, pTL.y, wPx, hPx);
-            ctx.strokeStyle = '#475569';
+            ctx.strokeStyle = light ? '#b5ac9b' : '#48516b';
             ctx.lineWidth = 1.5;
             ctx.strokeRect(pTL.x, pTL.y, wPx, hPx);
 
-            // Roof Ridge line
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+            ctx.strokeStyle = light ? 'rgba(37, 40, 48, 0.08)' : 'rgba(236, 232, 224, 0.06)';
             ctx.lineWidth = 1;
             ctx.beginPath();
             ctx.moveTo(pTL.x, pTL.y + hPx / 2);
@@ -542,9 +1155,8 @@
             ctx.stroke();
           }
 
-          // Building Name Tag
-          ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
-          ctx.font = '8px sans-serif';
+          ctx.fillStyle = light ? 'rgba(72, 77, 89, 0.65)' : 'rgba(181, 187, 201, 0.45)';
+          ctx.font = '8px ' + SANS_STACK;
           ctx.fillText(b.name, pTL.x + 4, pTL.y + 11);
         });
 
@@ -555,21 +1167,19 @@
 
           ctx.save();
           if (w.isBarricade) {
-            // High-visibility sandbag barricade
-            ctx.strokeStyle = '#eab308';
+            ctx.strokeStyle = light ? '#b88438' : '#d4a15a';
             ctx.lineWidth = 4;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
             ctx.lineTo(p2.x, p2.y);
             ctx.stroke();
 
-            ctx.strokeStyle = '#000000';
+            ctx.strokeStyle = light ? '#252830' : '#141821';
             ctx.lineWidth = 4;
             ctx.setLineDash([4, 4]);
             ctx.stroke();
           } else {
-            // Solid Masonry cover muret
-            ctx.strokeStyle = '#cbd5e1';
+            ctx.strokeStyle = light ? '#666259' : '#b5bbc9';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(p1.x, p1.y);
@@ -581,43 +1191,44 @@
       }
 
       // Street & Sector Labels
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.25)';
-      ctx.font = '9px monospace';
+      ctx.fillStyle = light ? 'rgba(102, 98, 89, 0.65)' : 'rgba(141, 148, 166, 0.45)';
+      ctx.font = '500 9px ' + SANS_STACK;
       ctx.fillText('EAST ALLEY (ASSAULT CORRIDOR)', pSpawn.x + 14, H - 35);
       ctx.fillText('MAIN CENTRAL AVENUE', pAve.x - 70, H - 35);
 
       // Compass Rose
       const compassX = W - 35;
       const compassY = 50;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.strokeStyle = light ? 'rgba(72, 77, 89, 0.5)' : 'rgba(236, 232, 224, 0.4)';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(compassX, compassY - 14);
       ctx.lineTo(compassX, compassY + 14);
       ctx.stroke();
-      ctx.fillStyle = '#38bdf8';
-      ctx.font = 'bold 10px sans-serif';
+      ctx.fillStyle = light ? '#3b6694' : '#7ea4d4';
+      ctx.font = '600 10px ' + SANS_STACK;
       ctx.fillText('N', compassX - 3, compassY - 17);
 
       // Scale Bar (20m)
       const barLen = 20 * scale;
       const barX = 25;
       const barY = H - 20;
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.5)';
+      ctx.strokeStyle = light ? 'rgba(72, 77, 89, 0.65)' : 'rgba(236, 232, 224, 0.5)';
       ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(barX, barY);
       ctx.lineTo(barX + barLen, barY);
       ctx.stroke();
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-      ctx.font = '9px monospace';
-      ctx.fillText('20 METERS', barX + barLen / 2 - 20, barY - 4);
+      ctx.fillStyle = light ? '#484d59' : 'rgba(236, 232, 224, 0.68)';
+      ctx.font = '500 9px ' + SANS_STACK;
+      ctx.fillText('20 METERS', barX + barLen / 2 - 22, barY - 4);
 
       ctx.restore();
     }
 
     function drawEnemies(ctx, opforHp, bluforUnits) {
       const showThreats = document.getElementById('chkThreats').checked;
+      const light = isLightTheme();
 
       targets.forEach(function(tgt, idx) {
         const p = toCanvas(tgt.x, tgt.y);
@@ -627,7 +1238,6 @@
         ctx.save();
 
         if (isAlive) {
-          // Check if any BLUFOR is close (< 45m)
           let underThreat = false;
           if (bluforUnits) {
             bluforUnits.forEach(function(bu) {
@@ -636,32 +1246,30 @@
             });
           }
 
-          // Threat Sector / Cone of Fire
           if (showThreats) {
             const tRad = (tgt.dir * Math.PI) / 180;
-            const fovArc = 0.45; // ~26 degrees
-            const coneDist = 36 * scale; // 36m weapon sight line
+            const fovArc = 0.45;
+            const coneDist = 36 * scale;
 
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
             ctx.arc(p.x, p.y, coneDist, -Math.PI / 2 + tRad - fovArc, -Math.PI / 2 + tRad + fovArc);
             ctx.closePath();
-            ctx.fillStyle = underThreat ? 'rgba(239, 68, 68, 0.25)' : 'rgba(239, 68, 68, 0.12)';
+            ctx.fillStyle = underThreat ? 'rgba(201, 86, 107, 0.24)' : 'rgba(201, 86, 107, 0.11)';
             ctx.fill();
-            ctx.strokeStyle = 'rgba(239, 68, 68, 0.4)';
+            ctx.strokeStyle = 'rgba(201, 86, 107, 0.42)';
             ctx.lineWidth = 1;
             ctx.setLineDash([2, 4]);
             ctx.stroke();
             ctx.setLineDash([]);
           }
 
-          // Active Pulsing Alert Halo when engaged
           if (underThreat) {
             ctx.beginPath();
             ctx.arc(p.x, p.y, 14, 0, Math.PI * 2);
-            ctx.fillStyle = 'rgba(239, 68, 68, 0.2)';
+            ctx.fillStyle = 'rgba(201, 86, 107, 0.18)';
             ctx.fill();
-            ctx.strokeStyle = '#ef4444';
+            ctx.strokeStyle = '#c9566b';
             ctx.lineWidth = 1;
             ctx.stroke();
           }
@@ -674,9 +1282,9 @@
           ctx.lineTo(p.x, p.y + size);
           ctx.lineTo(p.x - size, p.y);
           ctx.closePath();
-          ctx.fillStyle = '#dc2626';
+          ctx.fillStyle = light ? '#942c40' : '#c9566b';
           ctx.fill();
-          ctx.strokeStyle = '#fef2f2';
+          ctx.strokeStyle = '#fcfaf5';
           ctx.lineWidth = 1.5;
           ctx.stroke();
 
@@ -685,44 +1293,44 @@
           ctx.beginPath();
           ctx.moveTo(p.x, p.y);
           ctx.lineTo(p.x + Math.sin(tRad) * 16, p.y - Math.cos(tRad) * 16);
-          ctx.strokeStyle = '#fee2e2';
-          ctx.lineWidth = 2.5;
+          ctx.strokeStyle = light ? '#942c40' : '#ee9aa8';
+          ctx.lineWidth = 2.2;
           ctx.stroke();
 
           // Target Number inside Diamond
-          ctx.fillStyle = '#ffffff';
-          ctx.font = 'bold 8px monospace';
+          ctx.fillStyle = '#fcfaf5';
+          ctx.font = '600 8px ' + SANS_STACK;
           ctx.fillText((idx + 1).toString(), p.x - 2.5, p.y + 2.5);
 
           // Health Bar & Callout Box
           const hpPct = Math.max(0, Math.min(1, hp / 100));
           const bW = 28;
           const bH = 4;
-          ctx.fillStyle = '#1e293b';
+          ctx.fillStyle = light ? '#ded8ca' : '#1e222e';
           ctx.fillRect(p.x - bW / 2, p.y - 14, bW, bH);
-          ctx.fillStyle = (hp > 50) ? '#22c55e' : (hp > 20) ? '#f59e0b' : '#ef4444';
+          ctx.fillStyle = (hp > 50) ? '#3d8b66' : (hp > 20) ? '#b88438' : '#c9566b';
           ctx.fillRect(p.x - bW / 2, p.y - 14, bW * hpPct, bH);
-          ctx.strokeStyle = '#000000';
+          ctx.strokeStyle = light ? '#666259' : '#141821';
           ctx.lineWidth = 1;
           ctx.strokeRect(p.x - bW / 2, p.y - 14, bW, bH);
 
           // Label Banner
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
-          ctx.fillRect(p.x + 12, p.y - 9, 115, 18);
-          ctx.strokeStyle = 'rgba(239, 68, 68, 0.6)';
+          ctx.fillStyle = light ? 'rgba(252, 250, 245, 0.94)' : 'rgba(30, 34, 46, 0.92)';
+          ctx.fillRect(p.x + 12, p.y - 9, 118, 18);
+          ctx.strokeStyle = light ? '#e5b2bc' : 'rgba(201, 86, 107, 0.5)';
           ctx.lineWidth = 1;
-          ctx.strokeRect(p.x + 12, p.y - 9, 115, 18);
+          ctx.strokeRect(p.x + 12, p.y - 9, 118, 18);
 
-          ctx.fillStyle = '#fca5a5';
-          ctx.font = 'bold 8px monospace';
+          ctx.fillStyle = light ? '#942c40' : '#ee9aa8';
+          ctx.font = '600 8px ' + SANS_STACK;
           ctx.fillText('OPFOR ' + (idx + 1) + ' [' + hp + ' HP]', p.x + 16, p.y);
-          ctx.fillStyle = '#e2e8f0';
-          ctx.font = '7px sans-serif';
+          ctx.fillStyle = light ? '#484d59' : '#b5bbc9';
+          ctx.font = '7.5px ' + SANS_STACK;
           ctx.fillText(tgt.loc, p.x + 16, p.y + 7);
 
         } else {
           // NEUTRALIZED STATE
-          ctx.strokeStyle = 'rgba(148, 163, 184, 0.5)';
+          ctx.strokeStyle = light ? 'rgba(102, 98, 89, 0.55)' : 'rgba(141, 148, 166, 0.5)';
           ctx.lineWidth = 1.5;
           ctx.beginPath();
           ctx.moveTo(p.x - 5, p.y - 5);
@@ -731,10 +1339,10 @@
           ctx.lineTo(p.x - 5, p.y + 5);
           ctx.stroke();
 
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
+          ctx.fillStyle = light ? 'rgba(243, 239, 230, 0.9)' : 'rgba(30, 34, 46, 0.85)';
           ctx.fillRect(p.x + 8, p.y - 6, 88, 12);
-          ctx.fillStyle = '#94a3b8';
-          ctx.font = 'bold 8px monospace';
+          ctx.fillStyle = light ? '#666259' : '#8d94a6';
+          ctx.font = '500 8px ' + SANS_STACK;
           ctx.fillText('TARGET ' + (idx + 1) + ' [K.O]', p.x + 11, p.y + 3);
         }
 
@@ -775,6 +1383,7 @@
     function drawSquadLinks(ctx, units) {
       const showLinks = document.getElementById('chkLinks').checked;
       if (!showLinks || units.length < 2) return;
+      const light = isLightTheme();
 
       const lead = units.find(function(u) { return u[0] === 0; });
       if (!lead) return;
@@ -788,33 +1397,33 @@
         ctx.beginPath();
         ctx.moveTo(pLead.x, pLead.y);
         ctx.lineTo(pW.x, pW.y);
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.18)';
+        ctx.strokeStyle = light ? 'rgba(37, 40, 48, 0.25)' : 'rgba(236, 232, 224, 0.22)';
         ctx.lineWidth = 1;
         ctx.setLineDash([2, 4]);
         ctx.stroke();
 
         const midPx = (pLead.x + pW.x) / 2;
         const midPy = (pLead.y + pW.y) / 2;
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '8px monospace';
+        ctx.fillStyle = light ? '#484d59' : 'rgba(236, 232, 224, 0.78)';
+        ctx.font = '500 8.5px ' + SANS_STACK;
         ctx.fillText(dist.toFixed(0) + 'm', midPx + 3, midPy - 2);
         ctx.restore();
       });
     }
 
     function drawUnits(ctx, units) {
+      const light = isLightTheme();
       units.forEach(function(u) {
         const id = u[0];
         const x = u[1];
         const y = u[2];
         const dir = u[3];
-        const spd = u[4];
         const stc = u[5]; // S, C, P
         const hp = u[6];
         const state = u[7];
         const p = toCanvas(x, y);
 
-        const col = UNIT_COLORS[id] || { stroke: '#ffffff', fill: '#ffffff', label: 'SOLDIER' };
+        const col = UNIT_COLORS[id] || { stroke: '#ece8e0', fill: '#ece8e0', label: 'SOLDIER' };
 
         ctx.save();
 
@@ -845,7 +1454,7 @@
         ctx.arc(p.x, p.y, 7, 0, Math.PI * 2);
         ctx.fillStyle = col.fill;
         ctx.fill();
-        ctx.strokeStyle = '#0f172a';
+        ctx.strokeStyle = light ? '#252830' : '#171a23';
         ctx.lineWidth = 1.5;
         ctx.stroke();
 
@@ -853,24 +1462,24 @@
         const hpPct = Math.max(0, Math.min(1, hp / 250));
         ctx.beginPath();
         ctx.arc(p.x, p.y, 9.5, -Math.PI / 2, -Math.PI / 2 + hpPct * Math.PI * 2);
-        ctx.strokeStyle = (hp > 150) ? '#22c55e' : (hp > 60) ? '#f59e0b' : '#ef4444';
-        ctx.lineWidth = 2.5;
+        ctx.strokeStyle = (hp > 150) ? '#3d8b66' : (hp > 60) ? '#b88438' : '#c9566b';
+        ctx.lineWidth = 2.3;
         ctx.stroke();
 
         // Stance letter
-        ctx.fillStyle = '#0f172a';
-        ctx.font = 'bold 7px sans-serif';
+        ctx.fillStyle = '#141821';
+        ctx.font = '600 7px ' + SANS_STACK;
         ctx.fillText(stc, p.x - 2.5, p.y + 2.5);
 
         // Unit Badge Label
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 8px monospace';
+        ctx.fillStyle = light ? '#252830' : '#ece8e0';
+        ctx.font = '600 8px ' + SANS_STACK;
         ctx.fillText(col.label, p.x + 12, p.y - 4);
 
         // Tactical State
         let cleanState = state.replace('PIE_SLICING', 'PIE').replace('MOVING_TO_COVER', 'TO_COVER').replace('HOLDING_COVER', 'IN_COVER');
-        ctx.fillStyle = (stc === 'C') ? '#34d399' : 'rgba(255, 255, 255, 0.7)';
-        ctx.font = '8px sans-serif';
+        ctx.fillStyle = (stc === 'C') ? (light ? '#3d8b66' : '#6ec297') : (light ? '#484d59' : 'rgba(236, 232, 224, 0.72)');
+        ctx.font = '500 8px ' + SANS_STACK;
         ctx.fillText(cleanState, p.x + 12, p.y + 5);
 
         ctx.restore();
@@ -925,10 +1534,10 @@
       const maxT = (prefix === 'sem') ? maxSemT : maxVanT;
       if (currentT >= maxT) {
         statusBadge.innerText = 'Mission Complete';
-        statusBadge.className = 'px-2 py-0.5 rounded text-[11px] bg-emerald-950 text-emerald-300 font-mono border border-emerald-800';
+        statusBadge.className = 'status-pill is-complete';
       } else {
         statusBadge.innerText = 'In Combat...';
-        statusBadge.className = 'px-2 py-0.5 rounded text-[11px] bg-slate-800 text-slate-300 font-mono';
+        statusBadge.className = 'status-pill';
       }
 
       const lead = units.find(function(u) { return u[0] === 0; });
@@ -943,11 +1552,11 @@
 
         if (hpEl) {
           hpEl.innerText = unit[6] + ' HP';
-          hpEl.className = 'font-bold text-sm ' + (unit[6] > 150 ? 'text-emerald-400' : unit[6] > 60 ? 'text-amber-400' : 'text-rose-400');
+          hpEl.className = 'unit-hp ' + (unit[6] > 150 ? 'hp-high' : unit[6] > 60 ? 'hp-mid' : 'hp-low');
         }
         if (stcEl) {
-          stcEl.innerText = (unit[5] === 'C') ? 'ðŸ›¡ï¸ CROUCH' : (unit[5] === 'P') ? 'ðŸ›Œ PRONE' : 'ðŸƒ STAND';
-          stcEl.className = 'px-1.5 py-0.5 rounded text-[10px] ' + (unit[5] === 'C' ? 'bg-emerald-900/60 text-emerald-300 font-bold border border-emerald-700' : 'bg-slate-800 text-slate-300');
+          stcEl.innerText = (unit[5] === 'C') ? 'CROUCH' : (unit[5] === 'P') ? 'PRONE' : 'STAND';
+          stcEl.className = 'stance-badge' + (unit[5] === 'C' ? ' is-cover' : '');
         }
         if (stateEl) {
           stateEl.innerText = unit[7];
@@ -985,11 +1594,11 @@
       if (isPlaying) {
         label.innerText = 'Pause';
         icon.innerHTML = '<path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>';
-        btn.className = 'flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 active:bg-amber-700 text-white font-semibold text-sm transition-all shadow-lg shadow-amber-950/50';
+        btn.className = 'btn-primary is-paused';
       } else {
         label.innerText = 'Play';
         icon.innerHTML = '<path d="M8 5v14l11-7z"/>';
-        btn.className = 'flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-semibold text-sm transition-all shadow-lg shadow-cyan-950/50';
+        btn.className = 'btn-primary';
       }
     }
 
@@ -1025,10 +1634,10 @@
     document.querySelectorAll('.btnSpeed').forEach(function(btn) {
       btn.addEventListener('click', function(e) {
         document.querySelectorAll('.btnSpeed').forEach(function(b) {
-          b.className = 'btnSpeed px-2.5 py-1 rounded-lg text-xs font-medium text-slate-400 hover:text-white';
+          b.className = 'btnSpeed seg-btn';
         });
-        e.target.className = 'btnSpeed px-2.5 py-1 rounded-lg text-xs font-bold bg-cyan-600 text-white';
-        playbackSpeed = parseFloat(e.target.dataset.speed);
+        e.currentTarget.className = 'btnSpeed seg-btn is-active';
+        playbackSpeed = parseFloat(e.currentTarget.dataset.speed);
       });
     });
 
@@ -1037,15 +1646,15 @@
 
     btnRealtime.addEventListener('click', function() {
       syncMode = 'realtime';
-      btnRealtime.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-600 text-white transition';
-      btnNormalized.className = 'px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+      btnRealtime.className = 'seg-btn is-active';
+      btnNormalized.className = 'seg-btn';
       render();
     });
 
     btnNormalized.addEventListener('click', function() {
       syncMode = 'normalized';
-      btnNormalized.className = 'px-3 py-1 rounded-lg text-xs font-semibold bg-cyan-600 text-white transition';
-      btnRealtime.className = 'px-3 py-1 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition';
+      btnNormalized.className = 'seg-btn is-active';
+      btnRealtime.className = 'seg-btn';
       render();
     });
 
@@ -1053,6 +1662,25 @@
     document.getElementById('chkThreats').addEventListener('change', render);
     document.getElementById('chkTrails').addEventListener('change', render);
     document.getElementById('chkLinks').addEventListener('change', render);
+
+    const btnTheme = document.getElementById('btnThemeToggle');
+    if (btnTheme) {
+      btnTheme.addEventListener('click', function() {
+        const root = document.documentElement;
+        const goLight = !root.classList.contains('light');
+        root.classList.toggle('light', goLight);
+        root.classList.toggle('dark', !goLight);
+        const lbl = document.getElementById('labelTheme');
+        const ico = document.getElementById('iconTheme');
+        if (lbl) lbl.innerText = goLight ? 'Nocturne' : 'Daylight';
+        if (ico) {
+          ico.innerHTML = goLight
+            ? '<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>'
+            : '<circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>';
+        }
+        render();
+      });
+    }
 
     requestAnimationFrame(loop);
   </script>
